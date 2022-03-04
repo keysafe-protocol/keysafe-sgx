@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string.h>
 #include <assert.h>
 #include <fstream>
 #include <thread>
@@ -8,6 +9,24 @@
 #include "Enclave_KS_u.h"
 
 #include "ErrorSupport.h"
+
+void uprint(const char* str)
+{
+    printf("%s", str);
+}
+
+static size_t get_file_size(const char *filename)
+{
+    std::ifstream ifs(filename, std::ios::in | std::ios::binary);
+    if (!ifs.good())
+    {
+        std::cout << "Failed to open the file \"" << filename << "\"" << std::endl;
+        return -1;
+    }
+    ifs.seekg(0, std::ios::end);
+    size_t size = (size_t)ifs.tellg();
+    return size;
+}
 
 static bool read_file_to_buf(const char *filename, uint8_t *buf, size_t bsize)
 {
@@ -61,7 +80,7 @@ static sgx_status_t initialize_enclave(const char* enclave_path, sgx_enclave_id_
     return SGX_SUCCESS;
 }
 
-static bool test_init_enclave()
+static bool test_init_enclave(sgx_enclave_id_t &eid_t)
 {
     sgx_enclave_id_t eid_ks = 0;
     sgx_status_t ret = initialize_enclave(ENCLAVE_NAME_KS, &eid_ks);
@@ -71,18 +90,176 @@ static bool test_init_enclave()
         return false;
     }
     std::cout<<" Test Init Enclave successded."<<std::endl;
+    eid_t = eid_ks;
+    return true;
+}
+
+static void test_gen_key()
+{
+    sgx_enclave_id_t eid_t = 0;
+    if(test_init_enclave(eid_t))
+    {
+        sgx_status_t ret, ret_val;
+        ret = gen_key(eid_t, &ret_val);
+        if(ret != SGX_SUCCESS)
+        {
+            ret_error_support(ret);
+            sgx_destroy_enclave(eid_t);
+            return;
+        }
+        else if(ret_val != SGX_SUCCESS)
+        {
+            ret_error_support(ret_val);
+            sgx_destroy_enclave(eid_t);
+            return;
+        }
+        sgx_destroy_enclave(eid_t);
+    }
+}
+
+static bool seal_and_save_data()
+{
+    sgx_enclave_id_t eid_seal = 0;
+    sgx_status_t ret = initialize_enclave(ENCLAVE_NAME_KS, &eid_seal);
+    if(ret != SGX_SUCCESS)
+    {
+        ret_error_support(ret);
+        return false;
+    }
+
+    uint32_t sealed_data_size = 0;
+    ret = get_sealed_data_size(eid_seal, &sealed_data_size);
+    if(ret != SGX_SUCCESS)
+    {
+        ret_error_support(ret);
+        sgx_destroy_enclave(eid_seal);
+        return false;
+    }
+    else if(sealed_data_size == UINT32_MAX)
+    {
+        sgx_destroy_enclave(eid_seal);
+        return false;
+    }
+
+    uint8_t *temp_sealed_buf = (uint8_t*)malloc(sealed_data_size);
+    if(NULL == temp_sealed_buf)
+    {
+        std::cout<<"Seal and Save | out of memory"<<std::endl;
+        sgx_destroy_enclave(eid_seal);
+        return false;
+    }
+
+    sgx_status_t retval;
+    ret = seal_data(eid_seal, &retval, temp_sealed_buf, sealed_data_size);
+    if(ret != SGX_SUCCESS)
+    {
+        ret_error_support(ret);
+        free(temp_sealed_buf);
+        sgx_destroy_enclave(eid_seal);
+        return false;
+    }
+    else if(retval != SGX_SUCCESS)
+    {
+        ret_error_support(retval);
+        free(temp_sealed_buf);
+        sgx_destroy_enclave(eid_seal);
+        return false;
+    }
+
+    if(write_buf_to_file(SEALED_DATA_FILE, temp_sealed_buf, sealed_data_size,0)==false)
+    {
+        std::cout<<"Failed to save the sealed data blob to \""<< SEALED_DATA_FILE<<"\""<<std::endl;
+        free(temp_sealed_buf);
+        sgx_destroy_enclave(eid_seal);
+        return false;
+    }
+    free(temp_sealed_buf);
+    sgx_destroy_enclave(eid_seal);
+
+    std::cout<<"Sealing data succeeded."<<std::endl;
+    return true;
+}
+
+static bool read_and_unseal_data()
+{
+    sgx_enclave_id_t eid_unseal = 0;
+    // Load the enclave for unsealing
+    sgx_status_t ret = initialize_enclave(ENCLAVE_NAME_KS, &eid_unseal);
+    if (ret != SGX_SUCCESS)
+    {
+        ret_error_support(ret);
+        return false;
+    }
+
+    // Read the sealed blob from the file
+    size_t fsize = get_file_size(SEALED_DATA_FILE);
+    if (fsize == (size_t)-1)
+    {
+        std::cout << "Failed to get the file size of \"" << SEALED_DATA_FILE << "\"" << std::endl;
+        sgx_destroy_enclave(eid_unseal);
+        return false;
+    }
+    uint8_t *temp_buf = (uint8_t *)malloc(fsize);
+    if(temp_buf == NULL)
+    {
+        std::cout << "Out of memory" << std::endl;
+        sgx_destroy_enclave(eid_unseal);
+        return false;
+    }
+    if (read_file_to_buf(SEALED_DATA_FILE, temp_buf, fsize) == false)
+    {
+        std::cout << "Failed to read the sealed data blob from \"" << SEALED_DATA_FILE << "\"" << std::endl;
+        free(temp_buf);
+        sgx_destroy_enclave(eid_unseal);
+        return false;
+    }
+
+    // Unseal the sealed blob
+    sgx_status_t retval;
+    ret = unseal_data(eid_unseal, &retval, temp_buf, fsize);
+    if (ret != SGX_SUCCESS)
+    {
+        ret_error_support(ret);
+        free(temp_buf);
+        sgx_destroy_enclave(eid_unseal);
+        return false;
+    }
+    else if(retval != SGX_SUCCESS)
+    {
+        ret_error_support(retval);
+        free(temp_buf);
+        sgx_destroy_enclave(eid_unseal);
+        return false;
+    }
+
+    free(temp_buf);
+    sgx_destroy_enclave(eid_unseal);
+
+    std::cout << "Unseal succeeded." << std::endl;
     return true;
 }
 
 
 
 
+
 int main(int argc, char* argv[])
 {
-    if(test_init_enclave() == false)
+    // Enclave_Seal: seal the secret and save the data blob to a file
+    /*
+    if (seal_and_save_data() == false)
     {
-        std::cout<<"test init enclave failed"<<std::endl;
+        std::cout << "Failed to seal the secret and save it to a file." << std::endl;
         return -1;
     }
+
+    if(read_and_unseal_data() == false)
+    {
+        std::cout<<"Failed to unseal the data blob."<<std::endl;
+        return -1;
+    }
+    */
+    test_gen_key();
+
     return 0;
 }
