@@ -6,6 +6,9 @@ enclave {
     trusted {
         /* define ECALLs here. */
         public sgx_status_t gen_key();
+        public sgx_status_t ic_decrypt([in, string]const char* str, int len);
+
+
         public uint32_t get_sealed_data_size();
         public sgx_status_t seal_data([out, size=data_size] uint8_t* sealed_blob, uint32_t data_size);
         public sgx_status_t unseal_data([in, size=data_size] const uint8_t* sealed_blob, size_t data_size);
@@ -18,6 +21,7 @@ enclave {
     untrusted {
         /* define OCALLs here. */
         void uprint([in, string] const char *str);
+        void oc_deliver_public_key([in, string] const char *str);
     };
 };
 

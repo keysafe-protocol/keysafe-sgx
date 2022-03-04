@@ -99,6 +99,9 @@ void rsa_key_gen()
 	unsigned char *buf = (unsigned char *) malloc (len + 1);
 	unsigned char *tbuf = buf;
 	i2d_PublicKey(evp_pkey, &tbuf);
+    std::string strPublicKey;
+    strPublicKey.append(reinterpret_cast<const char*>(buf));
+    oc_deliver_public_key(strPublicKey.c_str());
 
 	// print public key
 	printf ("{\"public\":\"");
@@ -117,11 +120,13 @@ void rsa_key_gen()
 	i2d_PrivateKey(evp_pkey, &tbuf);
 
 	// print private key
+    /*
 	printf ("{\"private\":\"");
 	for (i = 0; i < len; i++) {
 	    printf("%02x", (unsigned char) buf[i]);
 	}
 	printf("\"}\n");
+    */
 
 	free(buf);
 
@@ -133,8 +138,6 @@ void rsa_key_gen()
 	  RSA_free(keypair);
 	}
 }
-
-
 
 
 char encrypt_data[BUFSIZ] = "Data to encrypt";
@@ -234,4 +237,9 @@ sgx_status_t unseal_data(const uint8_t *sealed_blob, size_t data_size)
     free(de_mac_text);
     free(decrypt_data);
     return ret;
+}
+
+sgx_status_t ic_decrypt(const char* str, int len)
+{
+    return static_cast<sgx_status_t>(0);
 }

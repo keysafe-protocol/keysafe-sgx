@@ -1,8 +1,16 @@
 #include <iostream>
-#include <string.h>
+#include <string>
 #include <assert.h>
 #include <fstream>
 #include <thread>
+#include <openssl/ec.h>
+#include <openssl/bn.h>
+#include <openssl/rsa.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+#include <openssl/rand.h>
+
+
 
 #include "sgx_urts.h"
 #include "Global/global.h"
@@ -10,9 +18,16 @@
 
 #include "ErrorSupport.h"
 
+std::string public_key;
+
 void uprint(const char* str)
 {
     printf("%s", str);
+}
+
+void oc_deliver_public_key(const char *str)
+{
+    public_key.append(str);
 }
 
 static size_t get_file_size(const char *filename)
@@ -115,6 +130,34 @@ static void test_gen_key()
         }
         sgx_destroy_enclave(eid_t);
     }
+}
+
+static void test_rsa_decrypt()
+{
+    //--TODO
+    /*
+    std::string strSource = "decrypt data success, congraulation!";
+
+    BIGNUM *bn = BN_new();
+    if(bn == NULL)
+    {
+        printf("BN_new failure: %ld\n", ERR_get_error());
+        return;
+    }
+    int ret = BN_set_word(bn, RSA_F4);
+    RSA* rsa = RSA_new();
+    if (!rsa)
+    {
+        printf("new rsa failed");
+        return;
+    }
+
+
+    int len = strSource.length();
+    char* ctext = new char[len + 1];
+    memset(ctext, 0, len + 1);
+    //RSA_public_encrypt(len, reinterpret_cast<const unsigned char*>(strSource.c_str()), reinterpret_cast<unsigned char*>(ctext), key, RSA_PKCS1_PADDING);
+    */
 }
 
 static bool seal_and_save_data()
