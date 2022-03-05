@@ -6,7 +6,7 @@ enclave {
     trusted {
         /* define ECALLs here. */
         public sgx_status_t gen_key();
-        public sgx_status_t ic_decrypt([in, string]const char* str, int len);
+        public sgx_status_t ic_decrypt([in, string]const char *str);
 
 
         public uint32_t get_sealed_data_size();

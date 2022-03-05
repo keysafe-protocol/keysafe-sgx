@@ -15,20 +15,10 @@
 #include "sgx_urts.h"
 #include "Global/global.h"
 #include "Enclave_KS_u.h"
-
+#include "KSSgx.h"
+#include "test.h"
+#include "oc_funcs.h"
 #include "ErrorSupport.h"
-
-std::string public_key;
-
-void uprint(const char* str)
-{
-    printf("%s", str);
-}
-
-void oc_deliver_public_key(const char *str)
-{
-    public_key.append(str);
-}
 
 static size_t get_file_size(const char *filename)
 {
@@ -83,92 +73,11 @@ static bool write_buf_to_file(const char *filename, const uint8_t *buf, size_t b
     return true;
 }
 
-static sgx_status_t initialize_enclave(const char* enclave_path, sgx_enclave_id_t *eid)
-{
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    ret = sgx_create_enclave(enclave_path, SGX_DEBUG_FLAG, NULL, NULL, eid, NULL);
-    if(ret != SGX_SUCCESS)
-    {
-        return ret;
-    }
-    return SGX_SUCCESS;
-}
-
-static bool test_init_enclave(sgx_enclave_id_t &eid_t)
-{
-    sgx_enclave_id_t eid_ks = 0;
-    sgx_status_t ret = initialize_enclave(ENCLAVE_NAME_KS, &eid_ks);
-    if(ret != SGX_SUCCESS)
-    {
-        ret_error_support(ret);
-        return false;
-    }
-    std::cout<<" Test Init Enclave successded."<<std::endl;
-    eid_t = eid_ks;
-    return true;
-}
-
-static void test_gen_key()
-{
-    sgx_enclave_id_t eid_t = 0;
-    if(test_init_enclave(eid_t))
-    {
-        sgx_status_t ret, ret_val;
-        ret = gen_key(eid_t, &ret_val);
-        if(ret != SGX_SUCCESS)
-        {
-            ret_error_support(ret);
-            sgx_destroy_enclave(eid_t);
-            return;
-        }
-        else if(ret_val != SGX_SUCCESS)
-        {
-            ret_error_support(ret_val);
-            sgx_destroy_enclave(eid_t);
-            return;
-        }
-        sgx_destroy_enclave(eid_t);
-    }
-}
-
-static void test_rsa_decrypt()
-{
-    //--TODO
-    /*
-    std::string strSource = "decrypt data success, congraulation!";
-
-    BIGNUM *bn = BN_new();
-    if(bn == NULL)
-    {
-        printf("BN_new failure: %ld\n", ERR_get_error());
-        return;
-    }
-    int ret = BN_set_word(bn, RSA_F4);
-    RSA* rsa = RSA_new();
-    if (!rsa)
-    {
-        printf("new rsa failed");
-        return;
-    }
-
-
-    int len = strSource.length();
-    char* ctext = new char[len + 1];
-    memset(ctext, 0, len + 1);
-    //RSA_public_encrypt(len, reinterpret_cast<const unsigned char*>(strSource.c_str()), reinterpret_cast<unsigned char*>(ctext), key, RSA_PKCS1_PADDING);
-    */
-}
 
 static bool seal_and_save_data()
 {
     sgx_enclave_id_t eid_seal = 0;
-    sgx_status_t ret = initialize_enclave(ENCLAVE_NAME_KS, &eid_seal);
-    if(ret != SGX_SUCCESS)
-    {
-        ret_error_support(ret);
-        return false;
-    }
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
     uint32_t sealed_data_size = 0;
     ret = get_sealed_data_size(eid_seal, &sealed_data_size);
@@ -227,12 +136,7 @@ static bool read_and_unseal_data()
 {
     sgx_enclave_id_t eid_unseal = 0;
     // Load the enclave for unsealing
-    sgx_status_t ret = initialize_enclave(ENCLAVE_NAME_KS, &eid_unseal);
-    if (ret != SGX_SUCCESS)
-    {
-        ret_error_support(ret);
-        return false;
-    }
+    sgx_status_t ret =SGX_ERROR_UNEXPECTED;
 
     // Read the sealed blob from the file
     size_t fsize = get_file_size(SEALED_DATA_FILE);
@@ -282,10 +186,6 @@ static bool read_and_unseal_data()
     return true;
 }
 
-
-
-
-
 int main(int argc, char* argv[])
 {
     // Enclave_Seal: seal the secret and save the data blob to a file
@@ -302,7 +202,16 @@ int main(int argc, char* argv[])
         return -1;
     }
     */
-    test_gen_key();
+    //test_gen_key();
+    //test_rsa_decrypt();
+    auto instance = KSSgx::Instance();
+    if(instance->initialize_enclave(ENCLAVE_NAME_KS))
+    {
+        sgx_enclave_id_t eid_t = instance->getEid();
+        test_gen_key(eid_t);
+        test_rsa_decrypt(eid_t);
+    }
+    delete instance;
 
     return 0;
 }

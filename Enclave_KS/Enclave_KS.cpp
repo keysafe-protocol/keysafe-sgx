@@ -6,6 +6,7 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
+#include <openssl/engine.h>
 
 
 #include "Enclave_KS_t.h"
@@ -51,6 +52,7 @@ struct evp_pkey_st {
 } /* EVP_PKEY */ ;
 
 EVP_PKEY *evp_pkey = NULL;
+RSA *keypair = NULL;
 
 
 void printf(const char *fmt, ...)
@@ -76,7 +78,7 @@ void rsa_key_gen()
 	    return;
 	}
 
-	RSA *keypair = RSA_new();
+	keypair = RSA_new();
 	if (keypair == NULL) {
 		printf("RSA_new failure: %ld\n", ERR_get_error());
 	    return;
@@ -132,11 +134,13 @@ void rsa_key_gen()
 
 	BN_free(bn);
 
+    /*
 	EVP_PKEY_free(evp_pkey);
 
 	if (evp_pkey->pkey.ptr != NULL) {
 	  RSA_free(keypair);
 	}
+    */
 }
 
 
@@ -146,6 +150,7 @@ char aad_mac_text[BUFSIZ] = "aad mac text";
 sgx_status_t gen_key()
 {
     rsa_key_gen();
+    return static_cast<sgx_status_t>(0);
 }
 
 uint32_t get_sealed_data_size()
@@ -239,7 +244,36 @@ sgx_status_t unseal_data(const uint8_t *sealed_blob, size_t data_size)
     return ret;
 }
 
-sgx_status_t ic_decrypt(const char* str, int len)
+void decrypt(unsigned char* in, size_t inlen)
 {
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evp_pkey, evp_pkey->engine);
+    EVP_PKEY_decrypt_init(ctx);
+    EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING);
+    size_t outlen;
+    EVP_PKEY_decrypt(ctx, NULL, &outlen, in, inlen);
+    unsigned char* out = (unsigned char*)OPENSSL_malloc(outlen);
+    EVP_PKEY_decrypt(ctx, out, &outlen, in, inlen);
+    printf("decrypt success : %s\n", out);
+}
+
+sgx_status_t ic_decrypt(const char *str)
+{
+
+    std::string source(str);
+    printf("%s\n", source.c_str());
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evp_pkey, evp_pkey->engine);
+    EVP_PKEY_encrypt_init(ctx);
+    EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING);
+    size_t outlen;
+    const unsigned char *in = (unsigned char*)source.c_str();
+    if(EVP_PKEY_encrypt(ctx, NULL, &outlen, in, source.length()) <= 0)
+    {
+        printf("EVP_PKEY_encrypt failed");
+        return static_cast<sgx_status_t>(0);
+    }
+    unsigned char* out = (unsigned char*)OPENSSL_malloc(outlen+1);
+    EVP_PKEY_encrypt(ctx, out, &outlen, in, source.length());
+    decrypt(out, outlen);
+
     return static_cast<sgx_status_t>(0);
 }
