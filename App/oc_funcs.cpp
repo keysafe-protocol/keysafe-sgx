@@ -1,7 +1,7 @@
 #include "oc_funcs.h"
 #include "KSSgx.h"
 
-void uprint(const char* str)
+void oc_print(const char* str)
 {
     printf("%s", str);
 }

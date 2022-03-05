@@ -62,7 +62,7 @@ void printf(const char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
-    uprint(buf);
+    oc_print(buf);
 }
 
 void rsa_key_gen()
@@ -147,33 +147,33 @@ void rsa_key_gen()
 char encrypt_data[BUFSIZ] = "Data to encrypt";
 char aad_mac_text[BUFSIZ] = "aad mac text";
 
-sgx_status_t gen_key()
+sgx_status_t ec_gen_key()
 {
     rsa_key_gen();
     return static_cast<sgx_status_t>(0);
 }
 
-uint32_t get_sealed_data_size()
+uint32_t ec_get_sealed_data_size()
 {
     return sgx_calc_sealed_data_size((uint32_t)strlen(aad_mac_text), (uint32_t)strlen(encrypt_data));
 }
 
-sgx_status_t ks_exchange_pair_key(const char* str)
+sgx_status_t ec_ks_exchange_pair_key(const char* str)
 {
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ks_seal(const char *str)
+sgx_status_t ec_ks_seal(const char *str)
 {
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ks_unseal(const char* str)
+sgx_status_t ec_ks_unseal(const char* str)
 {
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t seal_data(uint8_t* sealed_blob, uint32_t data_size)
+sgx_status_t ec_seal_data(uint8_t* sealed_blob, uint32_t data_size)
 {
     uint32_t sealed_data_size = sgx_calc_sealed_data_size((uint32_t)strlen(aad_mac_text), (uint32_t)strlen(encrypt_data));
 
@@ -202,7 +202,7 @@ sgx_status_t seal_data(uint8_t* sealed_blob, uint32_t data_size)
     return err;
 }
 
-sgx_status_t unseal_data(const uint8_t *sealed_blob, size_t data_size)
+sgx_status_t ec_unseal_data(const uint8_t *sealed_blob, size_t data_size)
 {
     uint32_t mac_text_len = sgx_get_add_mac_txt_len((const sgx_sealed_data_t*)sealed_blob);
     uint32_t decrypt_data_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t*)sealed_blob);
@@ -244,7 +244,7 @@ sgx_status_t unseal_data(const uint8_t *sealed_blob, size_t data_size)
     return ret;
 }
 
-void decrypt(unsigned char* in, size_t inlen)
+unsigned char* decrypt(unsigned char* in, size_t inlen)
 {
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evp_pkey, evp_pkey->engine);
     EVP_PKEY_decrypt_init(ctx);
@@ -254,11 +254,11 @@ void decrypt(unsigned char* in, size_t inlen)
     unsigned char* out = (unsigned char*)OPENSSL_malloc(outlen);
     EVP_PKEY_decrypt(ctx, out, &outlen, in, inlen);
     printf("decrypt success : %s\n", out);
+    return out;
 }
 
-sgx_status_t ic_decrypt(const char *str)
+sgx_status_t ec_decrypt(const char *str)
 {
-
     std::string source(str);
     printf("%s\n", source.c_str());
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evp_pkey, evp_pkey->engine);

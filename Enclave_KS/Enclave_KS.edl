@@ -5,22 +5,22 @@ enclave {
 
     trusted {
         /* define ECALLs here. */
-        public sgx_status_t gen_key();
-        public sgx_status_t ic_decrypt([in, string]const char *str);
+        public sgx_status_t ec_gen_key();
+        public sgx_status_t ec_decrypt([in, string]const char *str);
 
 
-        public uint32_t get_sealed_data_size();
-        public sgx_status_t seal_data([out, size=data_size] uint8_t* sealed_blob, uint32_t data_size);
-        public sgx_status_t unseal_data([in, size=data_size] const uint8_t* sealed_blob, size_t data_size);
+        public uint32_t ec_get_sealed_data_size();
+        public sgx_status_t ec_seal_data([out, size=data_size] uint8_t* sealed_blob, uint32_t data_size);
+        public sgx_status_t ec_unseal_data([in, size=data_size] const uint8_t* sealed_blob, size_t data_size);
 
-        public sgx_status_t ks_exchange_pair_key([in, string]const char* str);
-        public sgx_status_t ks_seal([in, string]const char *str);
-        public sgx_status_t ks_unseal([in, string] const char *str);
+        public sgx_status_t ec_ks_exchange_pair_key([in, string]const char* str);
+        public sgx_status_t ec_ks_seal([in, string]const char *str);
+        public sgx_status_t ec_ks_unseal([in, string] const char *str);
     };
 
     untrusted {
         /* define OCALLs here. */
-        void uprint([in, string] const char *str);
+        void oc_print([in, string] const char *str);
         void oc_deliver_public_key([in, string] const char *str);
     };
 };

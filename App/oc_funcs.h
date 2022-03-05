@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-void uprint(const char* str);
+void oc_print(const char* str);
 void oc_deliver_public_key(const char *str);
 
 #if defined(__cplusplus)
