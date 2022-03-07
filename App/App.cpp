@@ -10,8 +10,6 @@
 #include <openssl/err.h>
 #include <openssl/rand.h>
 
-
-
 #include "sgx_urts.h"
 #include "Global/global.h"
 #include "Enclave_KS_u.h"
@@ -22,22 +20,6 @@
 
 int main(int argc, char* argv[])
 {
-    // Enclave_Seal: seal the secret and save the data blob to a file
-    /*
-    if (seal_and_save_data() == false)
-    {
-        std::cout << "Failed to seal the secret and save it to a file." << std::endl;
-        return -1;
-    }
-
-    if(read_and_unseal_data() == false)
-    {
-        std::cout<<"Failed to unseal the data blob."<<std::endl;
-        return -1;
-    }
-    */
-    //test_gen_key();
-    //test_rsa_decrypt();
     auto instance = KSSgx::Instance();
     if(instance->initialize_enclave(ENCLAVE_NAME_KS))
     {

@@ -1,14 +1,8 @@
 #include <map>
 #include <string>
-#include <openssl/ec.h>
-#include <openssl/bn.h>
-#include <openssl/rsa.h>
-#include <openssl/evp.h>
-#include <openssl/err.h>
-#include <openssl/rand.h>
-#include <openssl/engine.h>
 
-
+#include "ks_enclave_ssl_funcs.h"
+#include "ks_enclave_util.h"
 #include "Enclave_KS_t.h"
 #include "tSgxSSL_api.h"
 
@@ -22,39 +16,10 @@
 
 std::map<std::string, std::string> client_pubkey_map;
 
-
-typedef void CRYPTO_RWLOCK;
-
-struct evp_pkey_st {
-    int type;
-    int save_type;
-    int references;
-    const EVP_PKEY_ASN1_METHOD *ameth;
-    ENGINE *engine;
-    union {
-        char *ptr;
-# ifndef OPENSSL_NO_RSA
-        struct rsa_st *rsa;     /* RSA */
-# endif
-# ifndef OPENSSL_NO_DSA
-        struct dsa_st *dsa;     /* DSA */
-# endif
-# ifndef OPENSSL_NO_DH
-        struct dh_st *dh;       /* DH */
-# endif
-# ifndef OPENSSL_NO_EC
-        struct ec_key_st *ec;   /* ECC */
-# endif
-    } pkey;
-    int save_parameters;
-    STACK_OF(X509_ATTRIBUTE) *attributes; /* [ 0 ] */
-    CRYPTO_RWLOCK *lock;
-} /* EVP_PKEY */ ;
-
 EVP_PKEY *evp_pkey = NULL;
 RSA *keypair = NULL;
 
-
+/*
 void printf(const char *fmt, ...)
 {
     char buf[BUFSIZ] = {'\0'};
@@ -64,6 +29,7 @@ void printf(const char *fmt, ...)
     va_end(ap);
     oc_print(buf);
 }
+*/
 
 void rsa_key_gen()
 {
@@ -105,14 +71,18 @@ void rsa_key_gen()
     strPublicKey.append(reinterpret_cast<const char*>(buf));
     oc_deliver_public_key(strPublicKey.c_str());
 
+    char* b64 = Base64Encode((const char*)buf, len, false);
+
+
 	// print public key
 	printf ("{\"public\":\"");
 	int i;
 	for (i = 0; i < len; i++) {
-	    printf("%02x", (unsigned char) buf[i]);
+	    printf("%02x", (unsigned char) b64[i]);
 	}
 	printf("\"}\n");
 
+    free(b64);
 	free(buf);
 
 	// private key - string
@@ -244,19 +214,6 @@ sgx_status_t ec_unseal_data(const uint8_t *sealed_blob, size_t data_size)
     return ret;
 }
 
-unsigned char* decrypt(unsigned char* in, size_t inlen)
-{
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evp_pkey, evp_pkey->engine);
-    EVP_PKEY_decrypt_init(ctx);
-    EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING);
-    size_t outlen;
-    EVP_PKEY_decrypt(ctx, NULL, &outlen, in, inlen);
-    unsigned char* out = (unsigned char*)OPENSSL_malloc(outlen);
-    EVP_PKEY_decrypt(ctx, out, &outlen, in, inlen);
-    printf("decrypt success : %s\n", out);
-    return out;
-}
-
 sgx_status_t ec_decrypt(const char *str)
 {
     std::string source(str);
@@ -273,7 +230,7 @@ sgx_status_t ec_decrypt(const char *str)
     }
     unsigned char* out = (unsigned char*)OPENSSL_malloc(outlen+1);
     EVP_PKEY_encrypt(ctx, out, &outlen, in, source.length());
-    decrypt(out, outlen);
+    decrypt(evp_pkey, out, outlen);
 
     return static_cast<sgx_status_t>(0);
 }
