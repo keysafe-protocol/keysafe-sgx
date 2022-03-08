@@ -21,11 +21,28 @@ void test_gen_key(sgx_enclave_id_t eid_t)
     }
 }
 
+
+void test_encrypt(sgx_enclave_id_t eid_t, const char* str)
+{
+    sgx_status_t ret, ret_val;
+    ret = ec_rsa_encrypt(eid_t, &ret_val, str);
+    if(ret != SGX_SUCCESS)
+    {
+        ret_error_support(ret);
+        return;
+    }
+    else if(ret_val != SGX_SUCCESS)
+    {
+        ret_error_support(ret_val);
+        return;
+    }
+}
+
 void test_rsa_decrypt(sgx_enclave_id_t eid_t)
 {
     std::string strSource = "source text,hello world";
     sgx_status_t ret, ret_val;
-    ret = ec_decrypt(eid_t, &ret_val, (const char*)strSource.c_str());
+    ret = ec_rsa_decrypt(eid_t, &ret_val, (const char*)strSource.c_str());
     if(ret != SGX_SUCCESS)
     {
         ret_error_support(ret);
@@ -136,4 +153,20 @@ void test_read_unseal_data(sgx_enclave_id_t eid_unseal)
     std::cout << "Unseal succeeded." << std::endl;
     return;
 
+}
+
+void test_get_public_key(sgx_enclave_id_t eid_t)
+{
+    sgx_status_t ret, ret_val;
+    ret = ec_deliver_public_key(eid_t, &ret_val);
+    if(ret != SGX_SUCCESS)
+    {
+        ret_error_support(ret);
+        return;
+    }
+    else if(ret_val != SGX_SUCCESS)
+    {
+        ret_error_support(ret_val);
+        return;
+    }
 }

@@ -5,8 +5,13 @@ enclave {
 
     trusted {
         /* define ECALLs here. */
+        //在init enclave之后调用，生成密钥
         public sgx_status_t ec_gen_key();
-        public sgx_status_t ec_decrypt([in, string]const char *str);
+
+        //生成密钥之后,调用此方法可以获得pem格式的公钥匙，在oc_deliver_public_key中获得
+        public sgx_status_t ec_deliver_public_key();
+        public sgx_status_t ec_rsa_encrypt([in,string]const char* str);
+        public sgx_status_t ec_rsa_decrypt([in,string]const char* str);
 
 
         public uint32_t ec_get_sealed_data_size();
@@ -22,6 +27,7 @@ enclave {
         /* define OCALLs here. */
         void oc_print([in, string] const char *str);
         void oc_deliver_public_key([in, string] const char *str);
+        void oc_encrypted_string([in,string]const char *str);
     };
 };
 

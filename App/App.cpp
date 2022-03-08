@@ -25,7 +25,8 @@ int main(int argc, char* argv[])
     {
         sgx_enclave_id_t eid_t = instance->getEid();
         test_gen_key(eid_t);
-        test_rsa_decrypt(eid_t);
+        test_get_public_key(eid_t);
+        //test_encrypt(eid_t, "please encrypte me");
     }
     delete instance;
 

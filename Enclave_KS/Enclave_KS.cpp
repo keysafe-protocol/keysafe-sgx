@@ -49,7 +49,7 @@ void rsa_key_gen()
 		printf("RSA_new failure: %ld\n", ERR_get_error());
 	    return;
 	}
-	ret = RSA_generate_key_ex(keypair, 4096, bn, NULL);
+	ret = RSA_generate_key_ex(keypair, 3027, bn, NULL);
 	if (!ret) {
         printf("RSA_generate_key_ex failure: %ld\n", ERR_get_error());
 	    return;
@@ -63,6 +63,7 @@ void rsa_key_gen()
 	EVP_PKEY_assign_RSA(evp_pkey, keypair);
 
 	// public key - string
+    /*
 	int len = i2d_PublicKey(evp_pkey, NULL);
 	unsigned char *buf = (unsigned char *) malloc (len + 1);
 	unsigned char *tbuf = buf;
@@ -71,20 +72,21 @@ void rsa_key_gen()
     strPublicKey.append(reinterpret_cast<const char*>(buf));
     oc_deliver_public_key(strPublicKey.c_str());
 
-    char* b64 = Base64Encode((const char*)buf, len, false);
+    char * pem = (char*)malloc(len+1);
+    FormatPubToPem(keypair, pem);
+    free(pem);
 
-
-	// print public key
+	// prnint public key
 	printf ("{\"public\":\"");
 	int i;
 	for (i = 0; i < len; i++) {
-	    printf("%02x", (unsigned char) b64[i]);
+	    printf("%02x", (unsigned char) buf[i]);
 	}
 	printf("\"}\n");
 
-    free(b64);
 	free(buf);
 
+    printf("test 1");
 	// private key - string
 	len = i2d_PrivateKey(evp_pkey, NULL);
 	buf = (unsigned char *) malloc (len + 1);
@@ -92,15 +94,14 @@ void rsa_key_gen()
 	i2d_PrivateKey(evp_pkey, &tbuf);
 
 	// print private key
-    /*
 	printf ("{\"private\":\"");
 	for (i = 0; i < len; i++) {
 	    printf("%02x", (unsigned char) buf[i]);
 	}
 	printf("\"}\n");
-    */
 
 	free(buf);
+    */
 
 	BN_free(bn);
 
@@ -120,6 +121,24 @@ char aad_mac_text[BUFSIZ] = "aad mac text";
 sgx_status_t ec_gen_key()
 {
     rsa_key_gen();
+    return static_cast<sgx_status_t>(0);
+}
+
+sgx_status_t ec_deliver_public_key()
+{
+    std::string base64;
+    FormatPubToPem(keypair, base64);
+    oc_deliver_public_key(base64.c_str());
+    return static_cast<sgx_status_t>(0);
+}
+
+sgx_status_t ec_rsa_encrypt(const char* from)
+{
+    char* out = (char*)encrypt(evp_pkey, from);
+    std::string outStr;
+    outStr.append(out);
+    free(out);
+    oc_encrypted_string(outStr.c_str());
     return static_cast<sgx_status_t>(0);
 }
 
@@ -214,23 +233,11 @@ sgx_status_t ec_unseal_data(const uint8_t *sealed_blob, size_t data_size)
     return ret;
 }
 
-sgx_status_t ec_decrypt(const char *str)
+sgx_status_t ec_rsa_decrypt(const char *str)
 {
     std::string source(str);
-    printf("%s\n", source.c_str());
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evp_pkey, evp_pkey->engine);
-    EVP_PKEY_encrypt_init(ctx);
-    EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING);
-    size_t outlen;
-    const unsigned char *in = (unsigned char*)source.c_str();
-    if(EVP_PKEY_encrypt(ctx, NULL, &outlen, in, source.length()) <= 0)
-    {
-        printf("EVP_PKEY_encrypt failed");
-        return static_cast<sgx_status_t>(0);
-    }
-    unsigned char* out = (unsigned char*)OPENSSL_malloc(outlen+1);
-    EVP_PKEY_encrypt(ctx, out, &outlen, in, source.length());
-    decrypt(evp_pkey, out, outlen);
+    size_t outlen = source.length() + 1;
+    decrypt(evp_pkey, (unsigned char*)source.c_str(), outlen);
 
     return static_cast<sgx_status_t>(0);
 }

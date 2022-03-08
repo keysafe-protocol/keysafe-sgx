@@ -11,4 +11,7 @@ void oc_deliver_public_key(const char *str)
     KSSgx::Instance()->InitPubKey(str);
 }
 
-
+void oc_encrypted_string(const char* str)
+{
+    printf("oc encrypted : %s\n", str);
+}

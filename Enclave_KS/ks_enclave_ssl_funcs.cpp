@@ -1,6 +1,8 @@
 #include "ks_enclave_ssl_funcs.h"
 #include "ks_enclave_util.h"
 
+#include <string>
+
 char * Base64Encode(const char * input, int length, bool with_new_line)
 {
     BIO * bmem = NULL;
@@ -60,7 +62,41 @@ unsigned char* decrypt(EVP_PKEY* evp_pkey, unsigned char* in, size_t inlen)
 }
 
 
+unsigned char* encrypt(EVP_PKEY* evp_pkey, const char* str)
+{
+    std::string source;
+    source.append(str);
 
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evp_pkey, evp_pkey->engine);
+    EVP_PKEY_encrypt_init(ctx);
+    EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING);
+    size_t outlen;
+    const unsigned char *in = (unsigned char*)source.c_str();
+    if(EVP_PKEY_encrypt(ctx, NULL, &outlen, in, source.length())<=0)
+    {
+        printf("encrypt failed\n");
+        return NULL;
+    }
+    unsigned char* out = (unsigned char*)malloc(outlen+1);
+    EVP_PKEY_encrypt(ctx, out, &outlen, in, source.length());
+    return out;
+}
+
+int FormatPubToPem(RSA * pRSA, std::string& base64)
+{
+    base64.clear();
+    BUF_MEM *pBMem = NULL;
+    BIO *pBIO = BIO_new(BIO_s_mem());
+    if(PEM_write_bio_RSAPublicKey(pBIO,pRSA) !=1)
+    {
+        printf("public key error\n");
+    }
+    BIO_get_mem_ptr(pBIO, &pBMem);
+    base64.append(pBMem->data,pBMem->length);
+    printf("PEM\t%s\n", base64.c_str());
+    BIO_free(pBIO);
+    return 0;
+}
 
 
 
