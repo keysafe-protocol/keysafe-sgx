@@ -2,6 +2,7 @@
 
 SGX_SDK ?= /opt/intel/sgxsdk
 SGXSSL_INCLUDE_PATH ?= /opt/intel/sgxssl/include
+SGXSSL_CRYPTO_INCLUDE_PATH ?= /opt/intel/sgxssl/include/crypto
 SGXSSL_TRUSTED_LIB_PATH ?= /opt/intel/sgxssl/lib64
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
@@ -54,7 +55,7 @@ else
 endif
 
 App_Cpp_Files := $(wildcard App/*.cpp)
-App_Include_Paths := -IApp -IApp/Global -I$(SGX_SDK)/include
+App_Include_Paths := -IApp -IApp/Global -I$(SGX_SDK)/include -I$(SGXSSL_INCLUDE_PATH)/openssl
 
 App_Compile_CFlags := -fPIC -Wno-attributes $(App_Include_Paths)
 # Three configuration modes - Debug, prerelease, release

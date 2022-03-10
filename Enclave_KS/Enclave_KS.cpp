@@ -114,6 +114,13 @@ void rsa_key_gen()
     */
 }
 
+void deliver_public_key()
+{
+    std::string base64;
+    FormatPubToPem(keypair, base64);
+    oc_deliver_public_key(base64.c_str());
+}
+
 
 char encrypt_data[BUFSIZ] = "Data to encrypt";
 char aad_mac_text[BUFSIZ] = "aad mac text";
@@ -126,9 +133,7 @@ sgx_status_t ec_gen_key()
 
 sgx_status_t ec_deliver_public_key()
 {
-    std::string base64;
-    FormatPubToPem(keypair, base64);
-    oc_deliver_public_key(base64.c_str());
+    deliver_public_key();
     return static_cast<sgx_status_t>(0);
 }
 
@@ -149,17 +154,83 @@ uint32_t ec_get_sealed_data_size()
 
 sgx_status_t ec_ks_exchange_pair_key(const char* str)
 {
+    deliver_public_key();
     return static_cast<sgx_status_t>(0);
 }
 
 sgx_status_t ec_ks_seal(const char *str)
 {
-    return static_cast<sgx_status_t>(0);
+    int len = strlen(str);
+    unsigned char* in = (unsigned char*)malloc(len);
+    memcpy(in, str, len);
+    unsigned char* decrypt_data = decrypt(evp_pkey, in, len);
+    printf("ks_seal | decrypt pice \n", decrypt_data);
+    uint32_t sealed_data_size = sgx_calc_sealed_data_size((uint32_t)strlen(aad_mac_text), len);
+
+    char* temp_sealed_buff = (char*)malloc(sealed_data_size);
+    if(temp_sealed_buff == NULL)
+    {
+        free(decrypt_data);
+        free(in);
+        return SGX_ERROR_OUT_OF_MEMORY;
+
+    }
+    sgx_status_t err = sgx_seal_data((uint32_t)strlen(aad_mac_text),
+                                    (const uint8_t*)aad_mac_text,
+                                    len,
+                                    (uint8_t*)decrypt_data,
+                                    sealed_data_size,
+                                    (sgx_sealed_data_t*)temp_sealed_buff);
+    oc_deliver_sealed_string(temp_sealed_buff);
+
+    free(decrypt_data);
+    free(in);
+    free(temp_sealed_buff);
+
+    return err;
 }
 
-sgx_status_t ec_ks_unseal(const char* str)
+sgx_status_t ec_ks_unseal(char* pkey, const char* str)
 {
-    return static_cast<sgx_status_t>(0);
+    uint32_t mac_text_len = sgx_get_add_mac_txt_len((const sgx_sealed_data_t*)str);
+    uint32_t decrypt_data_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t*)str);
+
+    uint8_t* de_mac_text =(uint8_t*)malloc(mac_text_len);
+    if(de_mac_text == NULL)
+    {
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+
+    uint8_t* decrypt_data = (uint8_t*)malloc(decrypt_data_len);
+    if(decrypt_data == NULL)
+    {
+        free(de_mac_text);
+        return SGX_ERROR_OUT_OF_MEMORY;
+    }
+
+    sgx_status_t ret = sgx_unseal_data((const sgx_sealed_data_t*)str,
+                                        de_mac_text,
+                                        &mac_text_len,
+                                        decrypt_data,
+                                        &decrypt_data_len);
+    if(ret != SGX_SUCCESS)
+    {
+        free(de_mac_text);
+        free(decrypt_data);
+        return ret;
+    }
+
+    if(memcmp(de_mac_text, aad_mac_text, strlen(aad_mac_text)) || memcmp(decrypt_data, encrypt_data, strlen(encrypt_data)))
+    {
+        ret = SGX_ERROR_UNEXPECTED;
+    }
+
+    std::string encryptText = rsa_pub_encrypt(pkey, (const char*)decrypt_data);
+    oc_deliver_unseal_string(encryptText.c_str());
+
+    free(de_mac_text);
+    free(decrypt_data);
+    return ret;
 }
 
 sgx_status_t ec_seal_data(uint8_t* sealed_blob, uint32_t data_size)

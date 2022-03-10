@@ -12,6 +12,8 @@ char* Base64Decode(const char * input, int length, bool with_new_line);
 unsigned char* decrypt(EVP_PKEY* evp_key, unsigned char* in, size_t inlen);
 unsigned char* encrypt(EVP_PKEY* evp_pkey, const char* str);
 
+std::string rsa_pub_encrypt(const char* pKey, const char* data);
+
 int FormatPubToPem(RSA * pRSA, std::string& base64);
 
 

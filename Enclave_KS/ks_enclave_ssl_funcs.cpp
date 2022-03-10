@@ -82,6 +82,29 @@ unsigned char* encrypt(EVP_PKEY* evp_pkey, const char* str)
     return out;
 }
 
+
+std::string rsa_pub_encrypt(const char* pKey, const char* data)
+{
+    std::string strRet;
+    RSA* rsa = RSA_new();
+    BIO* keybio = BIO_new_mem_buf((unsigned char*)pKey, -1);
+    rsa = PEM_read_bio_RSA_PUBKEY(keybio, &rsa, NULL, NULL);
+
+    int len = RSA_size(rsa);
+    char* encryptText = (char*)malloc(len + 1);
+    memset(encryptText, 0, len+1);
+
+    int ret = RSA_public_decrypt(strlen(data), (const unsigned char*)data, (unsigned char*)encryptText, rsa, RSA_PKCS1_PADDING);
+    if(ret >0)
+    {
+        strRet = std::string(encryptText, ret);
+    }
+    free(encryptText);
+    BIO_free_all(keybio);
+    RSA_free(rsa);
+    return strRet;
+}
+
 int FormatPubToPem(RSA * pRSA, std::string& base64)
 {
     base64.clear();

@@ -14,13 +14,19 @@ enclave {
         public sgx_status_t ec_rsa_decrypt([in,string]const char* str);
 
 
+        //废除
         public uint32_t ec_get_sealed_data_size();
+        //废除
         public sgx_status_t ec_seal_data([out, size=data_size] uint8_t* sealed_blob, uint32_t data_size);
+        //废除
         public sgx_status_t ec_unseal_data([in, size=data_size] const uint8_t* sealed_blob, size_t data_size);
 
         public sgx_status_t ec_ks_exchange_pair_key([in, string]const char* str);
+
+        //参数为enclave公钥加密过的数据
         public sgx_status_t ec_ks_seal([in, string]const char *str);
-        public sgx_status_t ec_ks_unseal([in, string] const char *str);
+        //第一个参数是userpublickey 第二个参数是seal过的数据
+        public sgx_status_t ec_ks_unseal([in, string]char* pkey, [in, string] const char *str);
     };
 
     untrusted {
@@ -28,6 +34,11 @@ enclave {
         void oc_print([in, string] const char *str);
         void oc_deliver_public_key([in, string] const char *str);
         void oc_encrypted_string([in,string]const char *str);
+
+        //ec_ks_seal之后从这个oc中传出seal的数据
+        void oc_deliver_sealed_string([in,string]const char* str);
+        //ec_ks_unseal之后从这个oc传输unseal的数据
+        void oc_deliver_unseal_string([in, string]const char* str);
     };
 };
 

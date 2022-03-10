@@ -15,3 +15,13 @@ void oc_encrypted_string(const char* str)
 {
     printf("oc encrypted : %s\n", str);
 }
+
+void oc_deliver_sealed_string(const char* str)
+{
+    printf("%s\n", str);
+}
+
+void oc_deliver_unseal_string(const char* str)
+{
+    printf("%s\n", str);
+}
