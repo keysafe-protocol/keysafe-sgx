@@ -13,21 +13,18 @@ enclave {
         public sgx_status_t ec_rsa_encrypt([in,string]const char* str);
         public sgx_status_t ec_rsa_decrypt([in,string]const char* str);
 
-
-        //废除
-        public uint32_t ec_get_sealed_data_size();
-        //废除
-        public sgx_status_t ec_seal_data([out, size=data_size] uint8_t* sealed_blob, uint32_t data_size);
-        //废除
-        public sgx_status_t ec_unseal_data([in, size=data_size] const uint8_t* sealed_blob, size_t data_size);
-
         public sgx_status_t ec_ks_exchange_pair_key([in, string]const char* str);
 
+        //以下为新接口
+        public sgx_status_t ec_ks_exchange([out, size=1024]char* str);
         //参数为enclave公钥加密过的数据
-        public sgx_status_t ec_ks_seal([in, string]const char *str);
+        public sgx_status_t ec_ks_seal([in, string]const char *str,[out,size=1024]char* sealedStr);
+
         //第一个参数是userpublickey 第二个参数是seal过的数据
-        public sgx_status_t ec_ks_unseal([in, string]char* pkey, [in, string] const char *str);
-    };
+        public sgx_status_t ec_ks_unseal([in, string]char* pkey, [in, string] const char *str, [in]uint8_t array[6]);
+        public sgx_status_t ec_prove_me([in]uint8_t array[6], [out, size=1024] char* unsealStr);
+
+          };
 
     untrusted {
         /* define OCALLs here. */

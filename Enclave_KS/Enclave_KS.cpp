@@ -1,5 +1,6 @@
 #include <map>
 #include <string>
+#include <iostream>
 
 #include "ks_enclave_ssl_funcs.h"
 #include "ks_enclave_util.h"
@@ -14,10 +15,12 @@
 
 #define ADD_ENTROPY_SIZE 32
 
-std::map<std::string, std::string> client_pubkey_map;
 
 EVP_PKEY *evp_pkey = NULL;
 RSA *keypair = NULL;
+std::string base64PublicKey;
+int nPublicLength = 0;
+std::map<std::string, std::string> recoveryMap;
 
 /*
 void printf(const char *fmt, ...)
@@ -62,56 +65,7 @@ void rsa_key_gen()
 	}
 	EVP_PKEY_assign_RSA(evp_pkey, keypair);
 
-	// public key - string
-    /*
-	int len = i2d_PublicKey(evp_pkey, NULL);
-	unsigned char *buf = (unsigned char *) malloc (len + 1);
-	unsigned char *tbuf = buf;
-	i2d_PublicKey(evp_pkey, &tbuf);
-    std::string strPublicKey;
-    strPublicKey.append(reinterpret_cast<const char*>(buf));
-    oc_deliver_public_key(strPublicKey.c_str());
-
-    char * pem = (char*)malloc(len+1);
-    FormatPubToPem(keypair, pem);
-    free(pem);
-
-	// prnint public key
-	printf ("{\"public\":\"");
-	int i;
-	for (i = 0; i < len; i++) {
-	    printf("%02x", (unsigned char) buf[i]);
-	}
-	printf("\"}\n");
-
-	free(buf);
-
-    printf("test 1");
-	// private key - string
-	len = i2d_PrivateKey(evp_pkey, NULL);
-	buf = (unsigned char *) malloc (len + 1);
-	tbuf = buf;
-	i2d_PrivateKey(evp_pkey, &tbuf);
-
-	// print private key
-	printf ("{\"private\":\"");
-	for (i = 0; i < len; i++) {
-	    printf("%02x", (unsigned char) buf[i]);
-	}
-	printf("\"}\n");
-
-	free(buf);
-    */
-
 	BN_free(bn);
-
-    /*
-	EVP_PKEY_free(evp_pkey);
-
-	if (evp_pkey->pkey.ptr != NULL) {
-	  RSA_free(keypair);
-	}
-    */
 }
 
 void deliver_public_key()
@@ -121,8 +75,6 @@ void deliver_public_key()
     oc_deliver_public_key(base64.c_str());
 }
 
-
-char encrypt_data[BUFSIZ] = "Data to encrypt";
 char aad_mac_text[BUFSIZ] = "aad mac text";
 
 sgx_status_t ec_gen_key()
@@ -147,18 +99,21 @@ sgx_status_t ec_rsa_encrypt(const char* from)
     return static_cast<sgx_status_t>(0);
 }
 
-uint32_t ec_get_sealed_data_size()
-{
-    return sgx_calc_sealed_data_size((uint32_t)strlen(aad_mac_text), (uint32_t)strlen(encrypt_data));
-}
-
 sgx_status_t ec_ks_exchange_pair_key(const char* str)
 {
     deliver_public_key();
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_ks_seal(const char *str)
+sgx_status_t ec_ks_exchange(char* str)
+{
+    std::string base64;
+    FormatPubToPem(keypair, base64);
+    memcpy(str, base64.c_str(), 1024);
+    return static_cast<sgx_status_t>(0);
+}
+
+sgx_status_t ec_ks_seal(const char *str, char* sealedStr)
 {
     int len = strlen(str);
     unsigned char* in = (unsigned char*)malloc(len);
@@ -181,6 +136,8 @@ sgx_status_t ec_ks_seal(const char *str)
                                     (uint8_t*)decrypt_data,
                                     sealed_data_size,
                                     (sgx_sealed_data_t*)temp_sealed_buff);
+
+    memcpy(sealedStr, temp_sealed_buff, sealed_data_size);
     oc_deliver_sealed_string(temp_sealed_buff);
 
     free(decrypt_data);
@@ -190,7 +147,7 @@ sgx_status_t ec_ks_seal(const char *str)
     return err;
 }
 
-sgx_status_t ec_ks_unseal(char* pkey, const char* str)
+sgx_status_t ec_ks_unseal(char* pkey, const char* str, uint8_t array[6])
 {
     uint32_t mac_text_len = sgx_get_add_mac_txt_len((const sgx_sealed_data_t*)str);
     uint32_t decrypt_data_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t*)str);
@@ -220,47 +177,48 @@ sgx_status_t ec_ks_unseal(char* pkey, const char* str)
         return ret;
     }
 
-    if(memcmp(de_mac_text, aad_mac_text, strlen(aad_mac_text)) || memcmp(decrypt_data, encrypt_data, strlen(encrypt_data)))
+
+    unsigned char alpha[6];
+    sgx_read_rand(alpha, 6);
+    std::string k;
+    for(int i = 0;i<6;++i)
     {
-        ret = SGX_ERROR_UNEXPECTED;
+        array[i] = (uint8_t)alpha[i];
+        k.append(std::to_string(array[i]));
     }
 
+
+    std::string v;
+    v.append((const char*)decrypt_data, decrypt_data_len);
+    recoveryMap[k] = v;
+    /*
     std::string encryptText = rsa_pub_encrypt(pkey, (const char*)decrypt_data);
     oc_deliver_unseal_string(encryptText.c_str());
+    */
 
     free(de_mac_text);
     free(decrypt_data);
     return ret;
 }
 
-sgx_status_t ec_seal_data(uint8_t* sealed_blob, uint32_t data_size)
+sgx_status_t ec_prove_me(uint8_t array[6], char* sealedStr)
 {
-    uint32_t sealed_data_size = sgx_calc_sealed_data_size((uint32_t)strlen(aad_mac_text), (uint32_t)strlen(encrypt_data));
-
-    if(sealed_data_size == UINT32_MAX)
-        return SGX_ERROR_UNEXPECTED;
-
-    if(sealed_data_size > data_size)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    uint8_t* temp_sealed_buff = (uint8_t*)malloc(sealed_data_size);
-    if(temp_sealed_buff == NULL)
-        return SGX_ERROR_OUT_OF_MEMORY;
-
-    sgx_status_t err = sgx_seal_data((uint32_t)strlen(aad_mac_text),
-                                        (const uint8_t*)aad_mac_text,
-                                        (uint32_t)strlen(encrypt_data),
-                                        (uint8_t*)encrypt_data,
-                                        sealed_data_size,
-                                        (sgx_sealed_data_t*)temp_sealed_buff);
-    if(err == SGX_SUCCESS)
+    std::string k;
+    for(int i = 0;i<6;++i)
     {
-        memcpy(sealed_blob, temp_sealed_buff, sealed_data_size);
+        k.append(std::to_string(array[i]));
     }
-
-    free(temp_sealed_buff);
-    return err;
+    auto it = recoveryMap.find(k);
+    if(it != recoveryMap.end())
+    {
+        std::string v = it->second;
+        memcpy(sealedStr, v.c_str(), 1024);
+        oc_deliver_unseal_string(v.c_str());
+        recoveryMap.erase(k);
+    }
+    return static_cast<sgx_status_t>(0);
 }
+
 
 sgx_status_t ec_unseal_data(const uint8_t *sealed_blob, size_t data_size)
 {
@@ -294,11 +252,6 @@ sgx_status_t ec_unseal_data(const uint8_t *sealed_blob, size_t data_size)
         return ret;
     }
 
-    if(memcmp(de_mac_text, aad_mac_text, strlen(aad_mac_text)) || memcmp(decrypt_data, encrypt_data, strlen(encrypt_data)))
-    {
-        ret = SGX_ERROR_UNEXPECTED;
-    }
-
     free(de_mac_text);
     free(decrypt_data);
     return ret;
@@ -312,3 +265,4 @@ sgx_status_t ec_rsa_decrypt(const char *str)
 
     return static_cast<sgx_status_t>(0);
 }
+

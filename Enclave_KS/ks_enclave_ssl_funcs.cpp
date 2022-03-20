@@ -116,7 +116,6 @@ int FormatPubToPem(RSA * pRSA, std::string& base64)
     }
     BIO_get_mem_ptr(pBIO, &pBMem);
     base64.append(pBMem->data,pBMem->length);
-    printf("PEM\t%s\n", base64.c_str());
     BIO_free(pBIO);
     return 0;
 }
