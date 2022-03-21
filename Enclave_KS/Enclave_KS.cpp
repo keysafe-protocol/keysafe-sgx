@@ -72,7 +72,7 @@ void deliver_public_key()
 {
     std::string base64;
     FormatPubToPem(keypair, base64);
-    oc_deliver_public_key(base64.c_str());
+    //oc_deliver_public_key(base64.c_str());
 }
 
 char aad_mac_text[BUFSIZ] = "aad mac text";
@@ -95,7 +95,7 @@ sgx_status_t ec_rsa_encrypt(const char* from)
     std::string outStr;
     outStr.append(out);
     free(out);
-    oc_encrypted_string(outStr.c_str());
+    //oc_encrypted_string(outStr.c_str());
     return static_cast<sgx_status_t>(0);
 }
 
@@ -138,7 +138,7 @@ sgx_status_t ec_ks_seal(const char *str, char* sealedStr)
                                     (sgx_sealed_data_t*)temp_sealed_buff);
 
     memcpy(sealedStr, temp_sealed_buff, sealed_data_size);
-    oc_deliver_sealed_string(temp_sealed_buff);
+   // oc_deliver_sealed_string(temp_sealed_buff);
 
     free(decrypt_data);
     free(in);
@@ -213,7 +213,7 @@ sgx_status_t ec_prove_me(uint8_t array[6], char* sealedStr)
     {
         std::string v = it->second;
         memcpy(sealedStr, v.c_str(), 1024);
-        oc_deliver_unseal_string(v.c_str());
+        //oc_deliver_unseal_string(v.c_str());
         recoveryMap.erase(k);
     }
     return static_cast<sgx_status_t>(0);

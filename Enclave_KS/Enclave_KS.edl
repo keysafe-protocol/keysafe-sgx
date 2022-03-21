@@ -28,6 +28,7 @@ enclave {
 
     untrusted {
         /* define OCALLs here. */
+        /*
         void oc_print([in, string] const char *str);
         void oc_deliver_public_key([in, string] const char *str);
         void oc_encrypted_string([in,string]const char *str);
@@ -36,6 +37,7 @@ enclave {
         void oc_deliver_sealed_string([in,string]const char* str);
         //ec_ks_unseal之后从这个oc传输unseal的数据
         void oc_deliver_unseal_string([in, string]const char* str);
+        */
     };
 };
 
