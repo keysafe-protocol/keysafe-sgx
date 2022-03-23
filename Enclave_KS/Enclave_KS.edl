@@ -16,11 +16,11 @@ enclave {
 
         public sgx_status_t ec_ks_exchange_pair_key([in, string]const char* str);
 
-        public sgx_status_t ec_ks_exchange([in, string] char* userpkeyHex, [out,size=256]char* str);
-        public sgx_status_t ec_ks_seal([in, string]const char *str,[out,size=1024]char* sealedStr);
+        public sgx_status_t ec_ks_exchange([in, string] char* userpkeyHex, [out,size=256]char* enclaveHex, [out, size=256]char* sharedStr);
+        public sgx_status_t ec_ks_seal([in, size=len]const char *str, int len, [out,size=4096]char* sealedStr);
 
         public sgx_status_t ec_ks_unseal([in, string]char* pkey, [in, string] const char *str, [in]uint8_t array[6]);
-        public sgx_status_t ec_prove_me([in]uint8_t array[6], [out, size=1024] char* unsealStr);
+        public sgx_status_t ec_prove_me([in]uint8_t array[6], [out, size=4096] char* unsealStr);
 
        };
 

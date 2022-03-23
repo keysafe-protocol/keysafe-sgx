@@ -21,7 +21,7 @@ RSA *keypair = NULL;
 std::string base64PublicKey;
 int nPublicLength = 0;
 std::map<std::string, std::string> recoveryMap;
-char shared[128];
+char shared[256];
 
 EC_KEY *ec_pkey = NULL;
 EC_GROUP* group = NULL;
@@ -141,17 +141,18 @@ sgx_status_t ec_ks_exchange_pair_key(const char* str)
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_ks_exchange(char* userpkeyHex, char* str)
+sgx_status_t ec_ks_exchange(char* userpkeyHex, char*  enclaveHex, char* sharedStr)
 {
     printf("user hex %s\n", userpkeyHex);
     const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
     ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
     //devliver the enclave ecc public key hex code
-    memcpy(str, ec_pkey_hex, strlen(ec_pkey_hex));
+    memcpy(enclaveHex,  ec_pkey_hex, strlen(ec_pkey_hex));
 
     EC_POINT *uPoint = EC_POINT_hex2point(group, userpkeyHex, NULL, NULL);
-    ECDH_compute_key(shared, 128, uPoint, ec_pkey, NULL);
-    printf("e shared %s\n", shared);
+    ECDH_compute_key(shared, 256, uPoint, ec_pkey, NULL);
+
+    memcpy(sharedStr, shared, 256);
 
     return static_cast<sgx_status_t>(0);
 }
@@ -167,7 +168,7 @@ sgx_status_t ec_aes_decrypt(char* str)
     int outLen = (inLen/16+1)*16;
     unsigned char* out = (unsigned char*)malloc(outLen);
     AES_KEY aes;
-    AES_set_decrypt_key((const unsigned char*)shared, 128, &aes);
+    AES_set_decrypt_key((const unsigned char*)shared, 256, &aes);
     AES_decrypt((const unsigned char*)str, out, &aes);
     printf("enclave decrypted %s\n", out);
     free(out);
@@ -175,15 +176,20 @@ sgx_status_t ec_aes_decrypt(char* str)
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_ks_seal(const char *str, char* sealedStr)
+sgx_status_t ec_ks_seal(const char *str, int len, char* sealedStr)
 {
-    int len = strlen(str);
+    printf("start seal\n");
     int outLen = (len/16+1)*16;
+    printf("outLen %d\n", outLen);
     unsigned char* out = (unsigned char*)malloc(outLen);
     AES_KEY aes;
-    AES_set_decrypt_key((const unsigned char*)shared,128, &aes);
+    AES_set_decrypt_key((const unsigned char*)shared,256, &aes);
     AES_decrypt((const unsigned char*)str, out, &aes);
-    printf("ks_seal | decrypt pice \n", out);
+    for(int i = 0;i<outLen;i++)
+    {
+        printf("%u",out[i]);
+    }
+    printf("\n");
     uint32_t sealed_data_size = sgx_calc_sealed_data_size((uint32_t)strlen(aad_mac_text), outLen);
 
     char* temp_sealed_buff = (char*)malloc(sealed_data_size);
@@ -196,10 +202,11 @@ sgx_status_t ec_ks_seal(const char *str, char* sealedStr)
     }
     sgx_status_t err = sgx_seal_data((uint32_t)strlen(aad_mac_text),
                                     (const uint8_t*)aad_mac_text,
-                                    len,
+                                    outLen,
                                     (uint8_t*)out,
                                     sealed_data_size,
                                     (sgx_sealed_data_t*)temp_sealed_buff);
+    printf("test 1\n");
 
     memcpy(sealedStr, temp_sealed_buff, sealed_data_size);
    // oc_deliver_sealed_string(temp_sealed_buff);
