@@ -143,7 +143,10 @@ int main(int argc, char* argv[])
 
             test_aes_decrypt(eid_t, (char*)out);
 
-            test_seal_and_save_data(eid_t);
+            uint32_t  sealedSize = 0;
+            uint8_t* sealedBlob = test_seal_and_save_data(eid_t, &sealedSize);
+            test_read_unseal_data(eid_t, sealedBlob, sealedSize);
+            free(sealedBlob);
 
             free(enclavepkHex);
         }

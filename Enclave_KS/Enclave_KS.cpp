@@ -20,7 +20,7 @@ EVP_PKEY *evp_pkey = NULL;
 RSA *keypair = NULL;
 std::string base64PublicKey;
 int nPublicLength = 0;
-std::map<std::string, std::string> recoveryMap;
+std::map<int, std::string> recoveryMap;
 char shared[256];
 
 EC_KEY *ec_pkey = NULL;
@@ -176,42 +176,59 @@ sgx_status_t ec_aes_decrypt(char* str)
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, char* sealedStr)
+uint32_t ec_calc_sealed_size(uint32_t len)
 {
-    printf("start seal\n");
+    return sgx_calc_sealed_data_size(0, (uint32_t)len);
+}
+
+sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, uint8_t* sealedStr, int sealedSize)
+{
     int outLen = (len/16+1)*16;
-    printf("outLen %d\n", outLen);
     unsigned char* out = (unsigned char*)malloc(outLen);
     AES_KEY aes;
     AES_set_decrypt_key((const unsigned char*)shared,256, &aes);
     AES_decrypt((const unsigned char*)str, out, &aes);
 
 
-    uint32_t sealed_data_size = sgx_calc_sealed_data_size((uint32_t)strlen(aad_mac_text), len2);
-
-    char* encrypt_data = (char*)malloc(len2);
+    uint8_t* encrypt_data = (uint8_t*)malloc(len2);
     if(encrypt_data == NULL)
     {
         return SGX_ERROR_INVALID_PARAMETER;
     }
     memset(encrypt_data, 0, len2);
     memcpy(encrypt_data, str2, len2);
-    char* temp_sealed_buff = (char*)malloc(sealed_data_size);
+
+    uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, (uint32_t)len2);
+    printf("seal data size %d\n", sealed_data_size);
+    if(sealed_data_size == UINT32_MAX)
+    {
+        free(encrypt_data);
+        free(out);
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    sgx_sealed_data_t* temp_sealed_buff = (sgx_sealed_data_t*)malloc(sealed_data_size);
     if(temp_sealed_buff == NULL)
     {
+        printf("tem sealed new failed\n");
         free(out);
         free(temp_sealed_buff);
         return SGX_ERROR_OUT_OF_MEMORY;
 
     }
-    sgx_status_t err = sgx_seal_data((uint32_t)strlen(aad_mac_text),
-                                    (const uint8_t*)aad_mac_text,
+
+    sgx_status_t err = sgx_seal_data(0,
+                                    NULL,
                                     len2,
-                                    (uint8_t*)encrypt_data,
+                                    encrypt_data,
                                     sealed_data_size,
                                     (sgx_sealed_data_t*)temp_sealed_buff);
 
-    memcpy(sealedStr, temp_sealed_buff, sealed_data_size);
+    if(err == SGX_SUCCESS)
+    {
+        printf("sealed data size %d\n", sizeof(sgx_sealed_data_t)*sealed_data_size);
+        memcpy(sealedStr, temp_sealed_buff, sealed_data_size);
+    }
    // oc_deliver_sealed_string(temp_sealed_buff);
 
     free(out);
@@ -220,9 +237,10 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, c
     return err;
 }
 
-sgx_status_t ec_ks_unseal(char* pkey, const char* str, uint8_t array[6])
+uint32_t ec_ks_unseal(const char* pkey, uint8_t* str, uint32_t data_size)
 {
-    uint32_t mac_text_len = sgx_get_add_mac_txt_len((const sgx_sealed_data_t*)str);
+    printf("unseal start\n");
+    uint32_t mac_text_len = 0;
     uint32_t decrypt_data_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t*)str);
 
     uint8_t* de_mac_text =(uint8_t*)malloc(mac_text_len);
@@ -251,19 +269,16 @@ sgx_status_t ec_ks_unseal(char* pkey, const char* str, uint8_t array[6])
     }
 
 
-    unsigned char alpha[6];
-    sgx_read_rand(alpha, 6);
-    std::string k;
-    for(int i = 0;i<6;++i)
-    {
-        array[i] = (uint8_t)alpha[i];
-        k.append(std::to_string(array[i]));
-    }
+    uint32_t retVal = 0;
+    unsigned char a[1];
+    sgx_read_rand(a, 1);
+    retVal = (int)a[0]*100 + (int)a[1];
 
 
     std::string v;
     v.append((const char*)decrypt_data, decrypt_data_len);
-    recoveryMap[k] = v;
+    recoveryMap[retVal] = v;
+    printf("v ==> %s\n", v.c_str());
     /*
     std::string encryptText = rsa_pub_encrypt(pkey, (const char*)decrypt_data);
     oc_deliver_unseal_string(encryptText.c_str());
@@ -271,23 +286,18 @@ sgx_status_t ec_ks_unseal(char* pkey, const char* str, uint8_t array[6])
 
     free(de_mac_text);
     free(decrypt_data);
-    return ret;
+    return retVal;
 }
 
-sgx_status_t ec_prove_me(uint8_t array[6], char* sealedStr)
+sgx_status_t ec_prove_me(uint32_t nKey, char* sealedStr)
 {
-    std::string k;
-    for(int i = 0;i<6;++i)
-    {
-        k.append(std::to_string(array[i]));
-    }
-    auto it = recoveryMap.find(k);
+    std::map<int, std::string>::iterator it  = recoveryMap.find(nKey);
     if(it != recoveryMap.end())
     {
         std::string v = it->second;
-        memcpy(sealedStr, v.c_str(), 1024);
+        memcpy(sealedStr, v.c_str(), v.length());
         //oc_deliver_unseal_string(v.c_str());
-        recoveryMap.erase(k);
+        recoveryMap.erase(nKey);
     }
     return static_cast<sgx_status_t>(0);
 }

@@ -14,12 +14,13 @@ enclave {
         public sgx_status_t ec_aes_encrypt([in,string]char* str);
         public sgx_status_t ec_aes_decrypt([in,string]char* str);
 
+        public uint32_t ec_calc_sealed_size(uint32_t len);
         public sgx_status_t ec_ks_exchange_pair_key([in, string]const char* str);
 
         public sgx_status_t ec_ks_exchange([in, string] char* userpkeyHex, [out,size=256]char* enclaveHex, [out, size=256]char* sharedStr);
-        public sgx_status_t ec_ks_seal([in, size=len]const char *str, int len, [in, size=len2] const char* str2, int len2,[out,size=4096]char* sealedStr);
-        public sgx_status_t ec_ks_unseal([in, string]char* pkey, [in, string] const char *str, [in]uint8_t array[6]);
-        public sgx_status_t ec_prove_me([in]uint8_t array[6], [out, size=4096] char* unsealStr);
+        public sgx_status_t ec_ks_seal([in, size=len]const char *str, int len, [in, size=len2] const char* str2, int len2,[out, size=sealedSize]uint8_t* sealedStr, int sealedSize);
+        public uint32_t ec_ks_unseal([in, string]const char* pkey, [in, size=data_size] uint8_t* str, uint32_t data_size);
+        public sgx_status_t ec_prove_me(uint32_t nKey, [out, size=4096] char* unsealStr);
 
        };
 
