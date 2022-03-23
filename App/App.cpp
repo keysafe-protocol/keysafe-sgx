@@ -128,13 +128,13 @@ int main(int argc, char* argv[])
         if(NULL != enclavepkHex)
         {
             EC_POINT *uPoint = EC_POINT_hex2point(group, enclavepkHex, NULL, NULL);
-            char shared[128];
-            ECDH_compute_key(shared, 128, uPoint, ec_pkey, NULL);
+            char shared[256];
+            ECDH_compute_key(shared, 256, uPoint, ec_pkey, NULL);
             printf("e shared %s\n", shared);
 
             char oData[] = "hello world!!!!";
             AES_KEY aes;
-            AES_set_encrypt_key((const unsigned char*)shared, 128, &aes);
+            AES_set_encrypt_key((const unsigned char*)shared, 256, &aes);
 
             int inLen = strlen(oData);
             int outLen = (inLen/16+1)*16;
@@ -142,6 +142,8 @@ int main(int argc, char* argv[])
             AES_encrypt((const unsigned char*)oData, out, &aes);
 
             test_aes_decrypt(eid_t, (char*)out);
+
+            test_seal_and_save_data(eid_t);
 
             free(enclavepkHex);
         }
