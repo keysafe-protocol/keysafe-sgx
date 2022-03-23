@@ -178,32 +178,33 @@ sgx_status_t ec_aes_decrypt(char* str)
 sgx_status_t ec_ks_seal(const char *str, char* sealedStr)
 {
     int len = strlen(str);
-    unsigned char* in = (unsigned char*)malloc(len);
-    memcpy(in, str, len);
-    unsigned char* decrypt_data = decrypt(evp_pkey, in, len);
-    printf("ks_seal | decrypt pice \n", decrypt_data);
-    uint32_t sealed_data_size = sgx_calc_sealed_data_size((uint32_t)strlen(aad_mac_text), len);
+    int outLen = (len/16+1)*16;
+    unsigned char* out = (unsigned char*)malloc(outLen);
+    AES_KEY aes;
+    AES_set_decrypt_key((const unsigned char*)shared,128, &aes);
+    AES_decrypt((const unsigned char*)str, out, &aes);
+    printf("ks_seal | decrypt pice \n", out);
+    uint32_t sealed_data_size = sgx_calc_sealed_data_size((uint32_t)strlen(aad_mac_text), outLen);
 
     char* temp_sealed_buff = (char*)malloc(sealed_data_size);
     if(temp_sealed_buff == NULL)
     {
-        free(decrypt_data);
-        free(in);
+        free(out);
+        free(temp_sealed_buff);
         return SGX_ERROR_OUT_OF_MEMORY;
 
     }
     sgx_status_t err = sgx_seal_data((uint32_t)strlen(aad_mac_text),
                                     (const uint8_t*)aad_mac_text,
                                     len,
-                                    (uint8_t*)decrypt_data,
+                                    (uint8_t*)out,
                                     sealed_data_size,
                                     (sgx_sealed_data_t*)temp_sealed_buff);
 
     memcpy(sealedStr, temp_sealed_buff, sealed_data_size);
    // oc_deliver_sealed_string(temp_sealed_buff);
 
-    free(decrypt_data);
-    free(in);
+    free(out);
     free(temp_sealed_buff);
 
     return err;
