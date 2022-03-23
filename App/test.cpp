@@ -124,7 +124,7 @@ void test_seal_and_save_data(sgx_enclave_id_t eid_t)
     printf("array size %d\n", sizeof(array));
     sgx_status_t ret, ret_val;
     char* str = (char*)malloc(4096);
-    ret = ec_ks_seal(eid_t, &ret_val,(const char*)array, sizeof(array), str);
+    //ret = ec_ks_seal(eid_t, &ret_val,(const char*)array, sizeof(array), str);
     printf("sealed data %s\n", str);
     free(str);
     if(ret != SGX_SUCCESS)

@@ -176,7 +176,7 @@ sgx_status_t ec_aes_decrypt(char* str)
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_ks_seal(const char *str, int len, char* sealedStr)
+sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, char* sealedStr)
 {
     printf("start seal\n");
     int outLen = (len/16+1)*16;
@@ -185,13 +185,17 @@ sgx_status_t ec_ks_seal(const char *str, int len, char* sealedStr)
     AES_KEY aes;
     AES_set_decrypt_key((const unsigned char*)shared,256, &aes);
     AES_decrypt((const unsigned char*)str, out, &aes);
-    for(int i = 0;i<outLen;i++)
-    {
-        printf("%u",out[i]);
-    }
-    printf("\n");
-    uint32_t sealed_data_size = sgx_calc_sealed_data_size((uint32_t)strlen(aad_mac_text), outLen);
 
+
+    uint32_t sealed_data_size = sgx_calc_sealed_data_size((uint32_t)strlen(aad_mac_text), len2);
+
+    char* encrypt_data = (char*)malloc(len2);
+    if(encrypt_data == NULL)
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+    memset(encrypt_data, 0, len2);
+    memcpy(encrypt_data, str2, len2);
     char* temp_sealed_buff = (char*)malloc(sealed_data_size);
     if(temp_sealed_buff == NULL)
     {
@@ -202,11 +206,10 @@ sgx_status_t ec_ks_seal(const char *str, int len, char* sealedStr)
     }
     sgx_status_t err = sgx_seal_data((uint32_t)strlen(aad_mac_text),
                                     (const uint8_t*)aad_mac_text,
-                                    outLen,
-                                    (uint8_t*)out,
+                                    len2,
+                                    (uint8_t*)encrypt_data,
                                     sealed_data_size,
                                     (sgx_sealed_data_t*)temp_sealed_buff);
-    printf("test 1\n");
 
     memcpy(sealedStr, temp_sealed_buff, sealed_data_size);
    // oc_deliver_sealed_string(temp_sealed_buff);
