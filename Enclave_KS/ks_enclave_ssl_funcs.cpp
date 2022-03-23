@@ -119,6 +119,3 @@ int FormatPubToPem(RSA * pRSA, std::string& base64)
     BIO_free(pBIO);
     return 0;
 }
-
-
-

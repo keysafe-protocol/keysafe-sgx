@@ -4,6 +4,17 @@
 #include <fstream>
 #include <thread>
 
+#include <openssl/ec.h>
+#include <openssl/bn.h>
+#include <openssl/rsa.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+#include <openssl/rand.h>
+#include <openssl/engine.h>
+#include <openssl/x509.h>
+#include <openssl/pem.h>
+#include <openssl/aes.h>
+
 #include "sgx_urts.h"
 #include "Global/global.h"
 #include "Enclave_KS_u.h"
@@ -11,6 +22,53 @@
 #include "test.h"
 #include "oc_funcs.h"
 #include "ErrorSupport.h"
+
+
+EC_KEY *ec_pkey = NULL;
+EC_GROUP* group = NULL;
+char* ec_pkey_hex = NULL;
+
+void ecc_key_gen()
+{
+    ec_pkey= EC_KEY_new();
+    if(ec_pkey == NULL)
+    {
+        printf("%s\n","EC_KEY_new err!");
+        return;
+    }
+    int crv_len = EC_get_builtin_curves(NULL, 0);
+    EC_builtin_curve *curves = (EC_builtin_curve*)malloc(sizeof(EC_builtin_curve)*crv_len);
+    EC_get_builtin_curves(curves, crv_len);
+    group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    if(group == NULL)
+    {
+        printf("%s\n", "Group new failed");
+        return;
+    }
+
+    unsigned int ret = EC_KEY_set_group(ec_pkey, group);
+    if(ret != 1)
+    {
+        printf("%s\n","EC_KEY_Set_group failed");
+        return;
+    }
+
+    ret = EC_KEY_generate_key(ec_pkey);
+    if(ret!=1)
+    {
+        printf("%s\n", "EC_KEY_generate_key failed");
+        return;
+    }
+
+    ret = EC_KEY_check_key(ec_pkey);
+    if(ret !=1)
+    {
+        printf("%s\n","check key failed");
+        return;
+    }
+
+        free(curves);
+}
 
 
 /*
@@ -57,12 +115,37 @@ int main(int argc, char* argv[])
     auto instance = KSSgx::Instance();
     if(instance->initialize_enclave(ENCLAVE_NAME_KS))
     {
+        ecc_key_gen();
+        const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
+        char* ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
+
         sgx_enclave_id_t eid_t = instance->getEid();
         test_gen_key(eid_t);
-        test_out_public_key(eid_t);
+        char* enclavepkHex = test_out_public_key(eid_t, ec_pkey_hex);
         //test_get_public_key(eid_t);
         //test_gen_rand_num(eid_t);
         //test_encrypt(eid_t, "please encrypte me");
+        if(NULL != enclavepkHex)
+        {
+            EC_POINT *uPoint = EC_POINT_hex2point(group, enclavepkHex, NULL, NULL);
+            char shared[128];
+            ECDH_compute_key(shared, 128, uPoint, ec_pkey, NULL);
+            printf("e shared %s\n", shared);
+
+            char oData[] = "hello world!!!!";
+            AES_KEY aes;
+            AES_set_encrypt_key((const unsigned char*)shared, 128, &aes);
+
+            int inLen = strlen(oData);
+            int outLen = (inLen/16+1)*16;
+            unsigned char* out = (unsigned char*)malloc(outLen);
+            AES_encrypt((const unsigned char*)oData, out, &aes);
+
+            test_aes_decrypt(eid_t, (char*)out);
+
+            free(enclavepkHex);
+        }
+        printf("success\n");
     }
     delete instance;
 

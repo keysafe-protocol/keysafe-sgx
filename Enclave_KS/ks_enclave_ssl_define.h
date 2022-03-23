@@ -10,6 +10,7 @@
 #include <openssl/engine.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
+#include <openssl/aes.h>
 
 typedef void CRYPTO_RWLOCK;
 

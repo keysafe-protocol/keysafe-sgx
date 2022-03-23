@@ -8,5 +8,5 @@ void printf(const char* fmt, ...)
     va_start(ap, fmt);
     vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
-    //oc_print(buf);
+    oc_print(buf);
 }

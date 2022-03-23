@@ -71,7 +71,7 @@ else
 endif
 
 App_Compile_CXXFlags := -std=c++0x $(App_Compile_CFlags)
-App_Link_Flags := -L$(SGX_LIBRARY_PATH) -L$(SGXSSL_TRUSTED_LIB_PATH) -lsgx_usgxssl -l$(Urts_Library_Name) -lpthread
+App_Link_Flags := -L$(SGX_LIBRARY_PATH) -L$(SGXSSL_TRUSTED_LIB_PATH) -lsgx_usgxssl -l$(Urts_Library_Name) -lpthread -lcrypto
 
 Gen_Untrusted_Source_KS := App/Enclave_KS_u.c
 Gen_Untrusted_Object_KS := App/Enclave_KS_u.o
@@ -115,7 +115,7 @@ Enclave_Security_Link_Flags := -Wl,-z,relro,-z,now,-z,noexecstack
 Enclave_Link_Flags := $(Enclave_Security_Link_Flags) \
     -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-L$(SGXSSL_TRUSTED_LIB_PATH) \
+	-L$(SGXSSL_TRUSTED_LIB_PATH)  \
 	-Wl,--whole-archive -lsgx_tsgxssl \
 	-Wl,--no-whole-archive -lsgx_tsgxssl_crypto -lsgx_pthread \
 	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \

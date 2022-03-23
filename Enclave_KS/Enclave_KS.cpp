@@ -21,18 +21,53 @@ RSA *keypair = NULL;
 std::string base64PublicKey;
 int nPublicLength = 0;
 std::map<std::string, std::string> recoveryMap;
+char shared[128];
 
-/*
-void printf(const char *fmt, ...)
+EC_KEY *ec_pkey = NULL;
+EC_GROUP* group = NULL;
+char* ec_pkey_hex = NULL;
+
+void ecc_key_gen()
 {
-    char buf[BUFSIZ] = {'\0'};
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(buf, BUFSIZ, fmt, ap);
-    va_end(ap);
-    oc_print(buf);
+    ec_pkey= EC_KEY_new();
+    if(ec_pkey == NULL)
+    {
+        printf("%s\n","EC_KEY_new err!");
+        return;
+    }
+    int crv_len = EC_get_builtin_curves(NULL, 0);
+    EC_builtin_curve *curves = (EC_builtin_curve*)malloc(sizeof(EC_builtin_curve)*crv_len);
+    EC_get_builtin_curves(curves, crv_len);
+    group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    if(group == NULL)
+    {
+        printf("%s\n", "Group new failed");
+        return;
+    }
+
+    unsigned int ret = EC_KEY_set_group(ec_pkey, group);
+    if(ret != 1)
+    {
+        printf("%s\n","EC_KEY_Set_group failed");
+        return;
+    }
+
+    ret = EC_KEY_generate_key(ec_pkey);
+    if(ret!=1)
+    {
+        printf("%s\n", "EC_KEY_generate_key failed");
+        return;
+    }
+
+    ret = EC_KEY_check_key(ec_pkey);
+    if(ret !=1)
+    {
+        printf("%s\n","check key failed");
+        return;
+    }
+
+        free(curves);
 }
-*/
 
 void rsa_key_gen()
 {
@@ -79,7 +114,8 @@ char aad_mac_text[BUFSIZ] = "aad mac text";
 
 sgx_status_t ec_gen_key()
 {
-    rsa_key_gen();
+    //rsa_key_gen();
+    ecc_key_gen();
     return static_cast<sgx_status_t>(0);
 }
 
@@ -105,11 +141,37 @@ sgx_status_t ec_ks_exchange_pair_key(const char* str)
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_ks_exchange(char* str)
+sgx_status_t ec_ks_exchange(char* userpkeyHex, char* str)
 {
-    std::string base64;
-    FormatPubToPem(keypair, base64);
-    memcpy(str, base64.c_str(), 1024);
+    printf("user hex %s\n", userpkeyHex);
+    const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
+    ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
+    //devliver the enclave ecc public key hex code
+    memcpy(str, ec_pkey_hex, strlen(ec_pkey_hex));
+
+    EC_POINT *uPoint = EC_POINT_hex2point(group, userpkeyHex, NULL, NULL);
+    ECDH_compute_key(shared, 128, uPoint, ec_pkey, NULL);
+    printf("e shared %s\n", shared);
+
+    return static_cast<sgx_status_t>(0);
+}
+
+sgx_status_t ec_aes_encrypt(char* str)
+{
+    return static_cast<sgx_status_t>(0);
+}
+
+sgx_status_t ec_aes_decrypt(char* str)
+{
+    int inLen = strlen(str);
+    int outLen = (inLen/16+1)*16;
+    unsigned char* out = (unsigned char*)malloc(outLen);
+    AES_KEY aes;
+    AES_set_decrypt_key((const unsigned char*)shared, 128, &aes);
+    AES_decrypt((const unsigned char*)str, out, &aes);
+    printf("enclave decrypted %s\n", out);
+    free(out);
+
     return static_cast<sgx_status_t>(0);
 }
 

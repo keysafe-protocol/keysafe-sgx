@@ -5,37 +5,33 @@ enclave {
 
     trusted {
         /* define ECALLs here. */
-        //在init enclave之后调用，生成密钥
         public sgx_status_t ec_gen_key();
 
-        //生成密钥之后,调用此方法可以获得pem格式的公钥匙，在oc_deliver_public_key中获得
         public sgx_status_t ec_deliver_public_key();
         public sgx_status_t ec_rsa_encrypt([in,string]const char* str);
         public sgx_status_t ec_rsa_decrypt([in,string]const char* str);
 
+        public sgx_status_t ec_aes_encrypt([in,string]char* str);
+        public sgx_status_t ec_aes_decrypt([in,string]char* str);
+
         public sgx_status_t ec_ks_exchange_pair_key([in, string]const char* str);
 
-        //以下为新接口
-        public sgx_status_t ec_ks_exchange([out, size=1024]char* str);
-        //参数为enclave公钥加密过的数据
+        public sgx_status_t ec_ks_exchange([in, string] char* userpkeyHex, [out,size=256]char* str);
         public sgx_status_t ec_ks_seal([in, string]const char *str,[out,size=1024]char* sealedStr);
 
-        //第一个参数是userpublickey 第二个参数是seal过的数据
         public sgx_status_t ec_ks_unseal([in, string]char* pkey, [in, string] const char *str, [in]uint8_t array[6]);
         public sgx_status_t ec_prove_me([in]uint8_t array[6], [out, size=1024] char* unsealStr);
 
-          };
+       };
 
     untrusted {
         /* define OCALLs here. */
-        /*
         void oc_print([in, string] const char *str);
+        /*
         void oc_deliver_public_key([in, string] const char *str);
         void oc_encrypted_string([in,string]const char *str);
 
-        //ec_ks_seal之后从这个oc中传出seal的数据
         void oc_deliver_sealed_string([in,string]const char* str);
-        //ec_ks_unseal之后从这个oc传输unseal的数据
         void oc_deliver_unseal_string([in, string]const char* str);
         */
     };
