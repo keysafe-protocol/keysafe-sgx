@@ -12,9 +12,11 @@
 #include "stdio.h"
 #include "string.h"
 #include "stdlib.h"
+#include "KSSpinLock.h"
 
 #define ADD_ENTROPY_SIZE 32
 
+static sgx_spinlock_t  ks_op_spin_lock = SGX_SPINLOCK_INITIALIZER;
 
 EVP_PKEY *evp_pkey = NULL;
 RSA *keypair = NULL;
@@ -114,6 +116,7 @@ char aad_mac_text[BUFSIZ] = "aad mac text";
 
 sgx_status_t ec_gen_key()
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     //rsa_key_gen();
     ecc_key_gen();
     return static_cast<sgx_status_t>(0);
@@ -121,12 +124,14 @@ sgx_status_t ec_gen_key()
 
 sgx_status_t ec_deliver_public_key()
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     deliver_public_key();
     return static_cast<sgx_status_t>(0);
 }
 
 sgx_status_t ec_rsa_encrypt(const char* from)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     char* out = (char*)encrypt(evp_pkey, from);
     std::string outStr;
     outStr.append(out);
@@ -137,12 +142,14 @@ sgx_status_t ec_rsa_encrypt(const char* from)
 
 sgx_status_t ec_ks_exchange_pair_key(const char* str)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     deliver_public_key();
     return static_cast<sgx_status_t>(0);
 }
 
 sgx_status_t ec_ks_exchange(char* userpkeyHex, char*  enclaveHex, char* sharedStr)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     printf("user hex %s\n", userpkeyHex);
     const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
     ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
@@ -159,11 +166,13 @@ sgx_status_t ec_ks_exchange(char* userpkeyHex, char*  enclaveHex, char* sharedSt
 
 sgx_status_t ec_aes_encrypt(char* str)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     return static_cast<sgx_status_t>(0);
 }
 
 sgx_status_t ec_aes_decrypt(char* str)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     int inLen = strlen(str);
     int outLen = (inLen/16+1)*16;
     unsigned char* out = (unsigned char*)malloc(outLen);
@@ -178,11 +187,13 @@ sgx_status_t ec_aes_decrypt(char* str)
 
 uint32_t ec_calc_sealed_size(uint32_t len)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     return sgx_calc_sealed_data_size(0, (uint32_t)len);
 }
 
 sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, uint8_t* sealedStr, int sealedSize)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     int outLen = (len/16+1)*16;
     unsigned char* out = (unsigned char*)malloc(outLen);
     AES_KEY aes;
@@ -239,6 +250,7 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
 
 uint32_t ec_ks_unseal(const char* pkey, uint8_t* str, uint32_t data_size)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     printf("unseal start\n");
     uint32_t mac_text_len = 0;
     uint32_t decrypt_data_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t*)str);
@@ -291,6 +303,7 @@ uint32_t ec_ks_unseal(const char* pkey, uint8_t* str, uint32_t data_size)
 
 sgx_status_t ec_prove_me(uint32_t nKey, char* sealedStr)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     std::map<int, std::string>::iterator it  = recoveryMap.find(nKey);
     if(it != recoveryMap.end())
     {
@@ -342,6 +355,7 @@ sgx_status_t ec_unseal_data(const uint8_t *sealed_blob, size_t data_size)
 
 sgx_status_t ec_rsa_decrypt(const char *str)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     std::string source(str);
     size_t outlen = source.length() + 1;
     decrypt(evp_pkey, (unsigned char*)source.c_str(), outlen);
