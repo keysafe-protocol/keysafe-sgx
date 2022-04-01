@@ -117,7 +117,8 @@ int main(int argc, char* argv[])
     {
         ecc_key_gen();
         const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
-        char* ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
+        //char* ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
+        char* ec_pkey_hex = "0481e1394c8ffd5cb774ca37609ebbfc16d1a22498d210af155975c1070f4da581c2cb33d33b5dd24a25fd47fbd5460039ce4ce63197e6b789e92b565ccec452ca";
 
         sgx_enclave_id_t eid_t = instance->getEid();
         test_gen_key(eid_t);
