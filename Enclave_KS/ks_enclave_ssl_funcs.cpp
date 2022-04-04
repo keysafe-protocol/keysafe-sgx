@@ -148,7 +148,7 @@ int aes_gcm_encrypt(const unsigned char* key, int key_len,
     }
     EVP_EncryptUpdate(ctx, CIPHERTEXT + len, &howmany, plain_text + len, plen - len);
     *outlen += howmany;
-    int success = EVP_EncryptFinal(ctx,CIPHERTEXT, &howmany);
+    int success = EVP_EncryptFinal_ex(ctx,CIPHERTEXT, &howmany);
     *outlen += howmany;
     EVP_CIPHER_CTX_free(ctx);
     return success;
@@ -181,7 +181,7 @@ int aes_gcm_decrypt(const unsigned char* key, int key_len,
     }
     EVP_DecryptUpdate(ctx, outbuf+len, &howmany, CIPHERTEXT, ct_len-len);
     *outlen += howmany;
-    int success = EVP_DecryptFinal(ctx, outbuf, &howmany);
+    int success = EVP_DecryptFinal_ex(ctx, outbuf, &howmany);
     *outlen += howmany;
     EVP_CIPHER_CTX_free(ctx);
     return success;
