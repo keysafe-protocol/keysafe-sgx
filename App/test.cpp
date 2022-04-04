@@ -163,8 +163,8 @@ void test_read_unseal_data(sgx_enclave_id_t eid_unseal, uint8_t* sealedBlob, uin
         ret_error_support(ret);
         return;
     }
-    char* unsealStr = (char*)malloc(4096);
-    ret = ec_prove_me(eid_unseal, &ret_val, randVal , unsealStr);
+    char* unsealStr = (char*)malloc(8192);
+    ret = ec_prove_me(eid_unseal, &ret_val, (uint8_t*)&randVal, 10, unsealStr);
     if (ret != SGX_SUCCESS)
     {
         ret_error_support(ret);

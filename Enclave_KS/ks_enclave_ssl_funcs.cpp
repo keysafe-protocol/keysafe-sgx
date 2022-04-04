@@ -48,7 +48,7 @@ char * Base64Decode(char * input, int length, bool with_new_line)
     return buffer;
 }
 
-unsigned char* decrypt(EVP_PKEY* evp_pkey, unsigned char* in, size_t inlen)
+unsigned char* rsa_decrypt(EVP_PKEY* evp_pkey, unsigned char* in, size_t inlen)
 {
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evp_pkey, evp_pkey->engine);
     EVP_PKEY_decrypt_init(ctx);
@@ -62,7 +62,7 @@ unsigned char* decrypt(EVP_PKEY* evp_pkey, unsigned char* in, size_t inlen)
 }
 
 
-unsigned char* encrypt(EVP_PKEY* evp_pkey, const char* str)
+unsigned char* rsa_encrypt(EVP_PKEY* evp_pkey, const char* str)
 {
     std::string source;
     source.append(str);
@@ -121,3 +121,68 @@ int FormatPubToPem(RSA * pRSA, std::string& base64)
 }
 
 
+int aes_gcm_encrypt(const unsigned char* key, int key_len,
+                    const unsigned char* iv, int iv_len,
+                    const unsigned char* plain_text, int plen,
+                    unsigned char* CIPHERTEXT, int *outlen)
+{
+   int howmany = 0;
+    const EVP_CIPHER *cipher;
+    switch(key_len)
+    {
+        case 128: cipher = EVP_aes_128_gcm();break;
+        case 192: cipher = EVP_aes_192_gcm();break;
+        case 256: cipher = EVP_aes_256_gcm();break;
+        default:break;
+    }
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL);
+    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, iv_len, NULL);
+    EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv);
+    int len = 0;
+    while(len <= plen - 128)
+    {
+        EVP_EncryptUpdate(ctx, CIPHERTEXT+len, &howmany, plain_text+len, 128);
+        *outlen += howmany;
+        len += 128;
+    }
+    EVP_EncryptUpdate(ctx, CIPHERTEXT + len, &howmany, plain_text + len, plen - len);
+    *outlen += howmany;
+    int success = EVP_EncryptFinal(ctx,CIPHERTEXT, &howmany);
+    *outlen += howmany;
+    EVP_CIPHER_CTX_free(ctx);
+    return success;
+}
+
+int aes_gcm_decrypt(const unsigned char* key, int key_len,
+                     const unsigned char* iv, int iv_len,
+                     const unsigned char* CIPHERTEXT, int ct_len,
+                     unsigned char* outbuf, int *outlen)
+{
+     int howmany = 0;
+    const EVP_CIPHER *cipher;
+    switch(key_len)
+    {
+        case 128: cipher = EVP_aes_128_gcm();break;
+        case 192: cipher = EVP_aes_192_gcm();break;
+        case 256: cipher = EVP_aes_256_gcm();break;
+        default:break;
+    }
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    EVP_DecryptInit_ex(ctx, cipher, NULL, NULL, NULL);
+    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, iv_len, NULL);
+    EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv);
+    int len = 0;
+    while(len <= ct_len - 128)
+    {
+        EVP_DecryptUpdate(ctx, outbuf+len, &howmany, CIPHERTEXT, 128);
+        *outlen += howmany;
+        len += 128;
+    }
+    EVP_DecryptUpdate(ctx, outbuf+len, &howmany, CIPHERTEXT, ct_len-len);
+    *outlen += howmany;
+    int success = EVP_DecryptFinal(ctx, outbuf, &howmany);
+    *outlen += howmany;
+    EVP_CIPHER_CTX_free(ctx);
+    return success;
+}

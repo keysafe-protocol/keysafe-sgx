@@ -55,7 +55,7 @@ else
 endif
 
 App_Cpp_Files := $(wildcard App/*.cpp)
-App_Include_Paths := -IApp -IApp/Global -I$(SGX_SDK)/include -I$(SGXSSL_INCLUDE_PATH)/openssl
+App_Include_Paths := -IApp -IApp/Global -I$(SGX_SDK)/include -I$(SGXSSL_INCLUDE_PATH)/openssl 
 
 App_Compile_CFlags := -fPIC -Wno-attributes $(App_Include_Paths)
 # Three configuration modes - Debug, prerelease, release

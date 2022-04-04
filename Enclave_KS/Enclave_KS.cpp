@@ -16,6 +16,10 @@
 
 #define ADD_ENTROPY_SIZE 32
 
+static const unsigned char IV[] = {
+    0x99,0xaa,0x3e,0x68,0xed,0x81,0x73,0xa0,0xee,0xd0,0x66,0x84
+};
+
 static sgx_spinlock_t  ks_op_spin_lock = SGX_SPINLOCK_INITIALIZER;
 
 EVP_PKEY *evp_pkey = NULL;
@@ -132,7 +136,7 @@ sgx_status_t ec_deliver_public_key()
 sgx_status_t ec_rsa_encrypt(const char* from)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
-    char* out = (char*)encrypt(evp_pkey, from);
+    char* out = (char*)rsa_encrypt(evp_pkey, from);
     std::string outStr;
     outStr.append(out);
     free(out);
@@ -194,16 +198,27 @@ uint32_t ec_calc_sealed_size(uint32_t len)
 sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, uint8_t* sealedStr, int sealedSize)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
+
     int outLen = (len/16+1)*16;
     unsigned char* out = (unsigned char*)malloc(outLen);
-    AES_KEY aes;
-    AES_set_decrypt_key((const unsigned char*)shared,256, &aes);
-    AES_decrypt((const unsigned char*)str, out, &aes);
+    memset(out, 0, outLen);
+    int outhowmany = 0;
+    int success = aes_gcm_decrypt((unsigned char*)shared, 256, IV, sizeof(IV),
+                                    (const unsigned char*)str, len,
+                                    out, &outhowmany);
+    if (success <= 0)
+    {
+        printf("ec_ks_seal decrypt failed \n");
+        free(out);
+        return SGX_ERROR_UNEXPECTED;
+    }
+    printf("ks_seal: %s\n", out);
 
 
     uint8_t* encrypt_data = (uint8_t*)malloc(len2);
     if(encrypt_data == NULL)
     {
+        free(out);
         return SGX_ERROR_INVALID_PARAMETER;
     }
     memset(encrypt_data, 0, len2);
@@ -237,8 +252,20 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
 
     if(err == SGX_SUCCESS)
     {
-        printf("sealed data size %d\n", sizeof(sgx_sealed_data_t)*sealed_data_size);
-        memcpy(sealedStr, temp_sealed_buff, sealed_data_size);
+        int outLen = (sealed_data_size/16+1)*16;
+        int howmany = 0;
+        unsigned char* outbuf = (unsigned char*)malloc(outLen);
+        int success = aes_gcm_encrypt((unsigned char*)shared, 256, IV, sizeof(IV),
+                                    (unsigned char*)temp_sealed_buff, sealed_data_size,
+                                    outbuf, &howmany);
+        if(success <=0)
+        {
+            printf("ks_seal : encrypt sealed data failed\n");
+            free(outbuf);
+            return SGX_ERROR_UNEXPECTED;
+        }
+        memcpy(sealedStr, outbuf, outLen);
+        free(outbuf);
     }
    // oc_deliver_sealed_string(temp_sealed_buff);
 
@@ -286,7 +313,6 @@ uint32_t ec_ks_unseal(const char* pkey, uint8_t* str, uint32_t data_size)
     sgx_read_rand(a, 1);
     retVal = (int)a[0]*100 + (int)a[1];
 
-
     std::string v;
     v.append((const char*)decrypt_data, decrypt_data_len);
     recoveryMap[retVal] = v;
@@ -301,14 +327,46 @@ uint32_t ec_ks_unseal(const char* pkey, uint8_t* str, uint32_t data_size)
     return retVal;
 }
 
-sgx_status_t ec_prove_me(uint32_t nKey, char* sealedStr)
+sgx_status_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
+
+    int outlen = (klen/16+1)*16;
+    unsigned char* outbuf = (unsigned char*)malloc(outlen);
+    memset(outbuf, 0, outlen);
+    int khowmany = 0;
+    int success = aes_gcm_decrypt((unsigned char*)shared, 256,
+                                                            IV, sizeof(IV),
+                                                            (unsigned char*)key_pt, klen,
+                                                            outbuf, &khowmany);
+    if(success <= 0)
+    {
+        free(outbuf);
+        printf("prove me : decrypt key failed\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    int nKey = (int)outbuf[0]*100 + (int)outbuf[1];
+    free(outbuf);
+
     std::map<int, std::string>::iterator it  = recoveryMap.find(nKey);
     if(it != recoveryMap.end())
     {
         std::string v = it->second;
-        memcpy(sealedStr, v.c_str(), v.length());
+
+        int outlen = (v.length()/16+1)*16;
+        int ohowmany = 0;
+        unsigned char* tmp = (unsigned char*)malloc(outlen);
+        int success = aes_gcm_encrypt((unsigned char*)shared, 256, IV, sizeof(IV),
+                                            (const unsigned char*)v.c_str(), v.length(),
+                                            tmp, &ohowmany);
+        if(success <= 0)
+        {
+            free(tmp);
+            printf("prove me : encrypt seal data falied\n");
+            return SGX_ERROR_UNEXPECTED;
+        }
+        memcpy(sealedStr, tmp, outlen);
         //oc_deliver_unseal_string(v.c_str());
         recoveryMap.erase(nKey);
     }
@@ -358,7 +416,7 @@ sgx_status_t ec_rsa_decrypt(const char *str)
     auto lock = KSSpinLock(&ks_op_spin_lock);
     std::string source(str);
     size_t outlen = source.length() + 1;
-    decrypt(evp_pkey, (unsigned char*)source.c_str(), outlen);
+    rsa_decrypt(evp_pkey, (unsigned char*)source.c_str(), outlen);
 
     return static_cast<sgx_status_t>(0);
 }
