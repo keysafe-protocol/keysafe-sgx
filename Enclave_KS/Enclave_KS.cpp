@@ -17,7 +17,7 @@
 #define ADD_ENTROPY_SIZE 32
 
 static const unsigned char IV[] = {
-    0x99,0xaa,0x3e,0x68,0xed,0x81,0x73,0xa0,0xee,0xd0,0x66,0x84
+    0,0,0,0,0,0,0,0,0,0,0,0
 };
 
 static sgx_spinlock_t  ks_op_spin_lock = SGX_SPINLOCK_INITIALIZER;
@@ -162,6 +162,7 @@ sgx_status_t ec_ks_exchange(char* userpkeyHex, char*  enclaveHex, char* sharedSt
 
     EC_POINT *uPoint = EC_POINT_hex2point(group, userpkeyHex, NULL, NULL);
     ECDH_compute_key(shared, 256, uPoint, ec_pkey, NULL);
+    printf("enclave shared key : %s\n", shared);
 
     memcpy(sharedStr, shared, 256);
 
