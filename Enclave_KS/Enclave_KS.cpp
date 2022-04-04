@@ -208,7 +208,7 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
                                     out, &outhowmany);
     if (success <= 0)
     {
-        printf("ec_ks_seal decrypt failed \n");
+        printf("%s\n", "ec_ks_seal decrypt failed");
         free(out);
         return SGX_ERROR_UNEXPECTED;
     }
