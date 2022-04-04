@@ -144,7 +144,7 @@ int aes_gcm_encrypt(const unsigned char* key, int key_len,
     {
         EVP_EncryptUpdate(ctx, CIPHERTEXT+len, &howmany, plain_text+len, 16);
         *outlen += howmany;
-        len += 128;
+        len += 16;
     }
     EVP_EncryptUpdate(ctx, CIPHERTEXT + len, &howmany, plain_text + len, plen - len);
     *outlen += howmany;
@@ -177,7 +177,7 @@ int aes_gcm_decrypt(const unsigned char* key, int key_len,
     {
         EVP_DecryptUpdate(ctx, outbuf+len, &howmany, CIPHERTEXT, 16);
         *outlen += howmany;
-        len += 128;
+        len += 16;
     }
     EVP_DecryptUpdate(ctx, outbuf+len, &howmany, CIPHERTEXT, ct_len-len);
     *outlen += howmany;
