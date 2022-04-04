@@ -197,6 +197,7 @@ uint32_t ec_calc_sealed_size(uint32_t len)
 
 sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, uint8_t* sealedStr, int sealedSize)
 {
+    printf("%s\n", "start ks_seal");
     auto lock = KSSpinLock(&ks_op_spin_lock);
 
     int outLen = (len/16+1)*16;
