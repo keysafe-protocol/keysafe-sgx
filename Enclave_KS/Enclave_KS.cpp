@@ -310,7 +310,8 @@ uint32_t ec_ks_unseal(const char* pkey, uint8_t* str, uint32_t data_size)
     std::string v;
     v.append((const char*)decrypt_data, decrypt_data_len);
     recoveryMap[retVal] = v;
-    printf("random code =====> %d\n", &retVal);
+    printf("random code\n");
+    printf("%d\n", retVal);
     /*
     std::string encryptText = rsa_pub_encrypt(pkey, (const char*)decrypt_data);
     oc_deliver_unseal_string(encryptText.c_str());
