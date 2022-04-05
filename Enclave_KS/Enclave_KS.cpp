@@ -347,44 +347,6 @@ sgx_status_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
     return static_cast<sgx_status_t>(0);
 }
 
-
-sgx_status_t ec_unseal_data(const uint8_t *sealed_blob, size_t data_size)
-{
-    uint32_t mac_text_len = sgx_get_add_mac_txt_len((const sgx_sealed_data_t*)sealed_blob);
-    uint32_t decrypt_data_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t*)sealed_blob);
-
-    if(mac_text_len==UINT32_MAX || decrypt_data_len == UINT32_MAX)
-        return SGX_ERROR_UNEXPECTED;
-
-    if(mac_text_len > data_size || decrypt_data_len > data_size)
-        return SGX_ERROR_INVALID_PARAMETER;
-
-    uint8_t *de_mac_text = (uint8_t*)malloc(mac_text_len);
-    if(de_mac_text == NULL)
-    {
-        return SGX_ERROR_OUT_OF_MEMORY;
-    }
-
-    uint8_t *decrypt_data = (uint8_t*)malloc(decrypt_data_len);
-    if(decrypt_data == NULL)
-    {
-        free(de_mac_text);
-        return SGX_ERROR_OUT_OF_MEMORY;
-    }
-
-    sgx_status_t ret = sgx_unseal_data((const sgx_sealed_data_t*)sealed_blob, de_mac_text, &mac_text_len, decrypt_data, &decrypt_data_len);
-    if(ret != SGX_SUCCESS)
-    {
-        free(de_mac_text);
-        free(decrypt_data);
-        return ret;
-    }
-
-    free(de_mac_text);
-    free(decrypt_data);
-    return ret;
-}
-
 sgx_status_t ec_rsa_decrypt(const char *str)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
