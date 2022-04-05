@@ -276,28 +276,20 @@ uint32_t ec_ks_unseal(const char* pkey, uint8_t* str, uint32_t data_size)
     uint32_t mac_text_len = 0;
     uint32_t decrypt_data_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t*)str);
 
-    uint8_t* de_mac_text =(uint8_t*)malloc(mac_text_len);
-    if(de_mac_text == NULL)
-    {
-        return SGX_ERROR_OUT_OF_MEMORY;
-    }
-
     uint8_t* decrypt_data = (uint8_t*)malloc(decrypt_data_len);
     if(decrypt_data == NULL)
     {
-        free(de_mac_text);
         return SGX_ERROR_OUT_OF_MEMORY;
     }
 
     sgx_status_t ret = sgx_unseal_data((const sgx_sealed_data_t*)str,
-                                        de_mac_text,
+                                        NULL,
                                         &mac_text_len,
                                         decrypt_data,
                                         &decrypt_data_len);
     if(ret != SGX_SUCCESS)
     {
         printf("unseal failed\n");
-        free(de_mac_text);
         free(decrypt_data);
         return ret;
     }
@@ -318,7 +310,6 @@ uint32_t ec_ks_unseal(const char* pkey, uint8_t* str, uint32_t data_size)
     oc_deliver_unseal_string(encryptText.c_str());
     */
 
-    free(de_mac_text);
     free(decrypt_data);
     return retVal;
 }
