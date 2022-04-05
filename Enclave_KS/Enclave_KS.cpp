@@ -222,7 +222,10 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
     memset(encrypt_data, 0, outhowmany);
     memcpy(encrypt_data, out, outhowmany);
 
-    uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, (uint32_t)len2);
+    printf("decrypt howmany\n");
+    printf("%d\n", outhowmany);
+
+    uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, (uint32_t)outhowmany);
     printf("seal data size %d\n", sealed_data_size);
     if(sealed_data_size == UINT32_MAX)
     {
@@ -244,21 +247,14 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
 
     sgx_status_t err = sgx_seal_data(0,
                                     NULL,
-                                    len2,
+                                    outhowmany,
                                     encrypt_data,
                                     sealed_data_size,
                                     (sgx_sealed_data_t*)temp_sealed_buff);
 
     if(err == SGX_SUCCESS)
     {
-        int outLen = (sealed_data_size/16+1)*16;
-        int howmany = 0;
-        unsigned char* outbuf = (unsigned char*)malloc(outLen);
-        aes_gcm_encrypt((unsigned char*)shared, 256, IV, sizeof(IV),
-                                    (unsigned char*)temp_sealed_buff, sealed_data_size,
-                                    outbuf, &howmany);
-        memcpy(sealedStr, outbuf, outLen);
-        free(outbuf);
+        memcpy(sealedStr, temp_sealed_buff, sealed_data_size);
     }
    // oc_deliver_sealed_string(temp_sealed_buff);
 
