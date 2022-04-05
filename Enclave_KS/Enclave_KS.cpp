@@ -169,24 +169,25 @@ sgx_status_t ec_ks_exchange(char* userpkeyHex, char*  enclaveHex, char* sharedSt
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_aes_encrypt(char* str)
+sgx_status_t ec_aes_gcm_encrypt(char* str)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_aes_decrypt(char* str)
+sgx_status_t ec_aes_gcm_decrypt(char* sharedStr, char* ciphertext)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
-    int inLen = strlen(str);
+    int inLen = strlen(ciphertext);
     int outLen = (inLen/16+1)*16;
+    int oh = 0;
     unsigned char* out = (unsigned char*)malloc(outLen);
-    AES_KEY aes;
-    AES_set_decrypt_key((const unsigned char*)shared, 256, &aes);
-    AES_decrypt((const unsigned char*)str, out, &aes);
-    printf("enclave decrypted %s\n", out);
+    memset(out, 0, outLen);
+    aes_gcm_decrypt((unsigned char*) sharedStr, 256, IV, sizeof(IV),
+                                                            (const unsigned char*)ciphertext, strlen(ciphertext),
+                                                            out, &oh);
+    printf("%s\n", out);
     free(out);
-
     return static_cast<sgx_status_t>(0);
 }
 
@@ -205,15 +206,9 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
     unsigned char* out = (unsigned char*)malloc(outLen);
     memset(out, 0, outLen);
     int outhowmany = 0;
-    int success = aes_gcm_decrypt((unsigned char*)shared, 256, IV, sizeof(IV),
+    aes_gcm_decrypt((unsigned char*)shared, 256, IV, sizeof(IV),
                                     (const unsigned char*)str, len,
                                     out, &outhowmany);
-    if (success <= 0)
-    {
-        printf("%s %d\n", "ec_ks_seal decrypt failed", success);
-        free(out);
-        return SGX_ERROR_UNEXPECTED;
-    }
     printf("ks_seal: %s\n", out);
 
 
@@ -257,15 +252,9 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
         int outLen = (sealed_data_size/16+1)*16;
         int howmany = 0;
         unsigned char* outbuf = (unsigned char*)malloc(outLen);
-        int success = aes_gcm_encrypt((unsigned char*)shared, 256, IV, sizeof(IV),
+        aes_gcm_encrypt((unsigned char*)shared, 256, IV, sizeof(IV),
                                     (unsigned char*)temp_sealed_buff, sealed_data_size,
                                     outbuf, &howmany);
-        if(success <=0)
-        {
-            printf("ks_seal : encrypt sealed data failed\n");
-            free(outbuf);
-            return SGX_ERROR_UNEXPECTED;
-        }
         memcpy(sealedStr, outbuf, outLen);
         free(outbuf);
     }
@@ -337,17 +326,10 @@ sgx_status_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
     unsigned char* outbuf = (unsigned char*)malloc(outlen);
     memset(outbuf, 0, outlen);
     int khowmany = 0;
-    int success = aes_gcm_decrypt((unsigned char*)shared, 256,
+    aes_gcm_decrypt((unsigned char*)shared, 256,
                                                             IV, sizeof(IV),
                                                             (unsigned char*)key_pt, klen,
                                                             outbuf, &khowmany);
-    if(success <= 0)
-    {
-        free(outbuf);
-        printf("prove me : decrypt key failed\n");
-        return SGX_ERROR_UNEXPECTED;
-    }
-
     int nKey = (int)outbuf[0]*100 + (int)outbuf[1];
     free(outbuf);
 
@@ -359,15 +341,9 @@ sgx_status_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
         int outlen = (v.length()/16+1)*16;
         int ohowmany = 0;
         unsigned char* tmp = (unsigned char*)malloc(outlen);
-        int success = aes_gcm_encrypt((unsigned char*)shared, 256, IV, sizeof(IV),
+        aes_gcm_encrypt((unsigned char*)shared, 256, IV, sizeof(IV),
                                             (const unsigned char*)v.c_str(), v.length(),
                                             tmp, &ohowmany);
-        if(success <= 0)
-        {
-            free(tmp);
-            printf("prove me : encrypt seal data falied\n");
-            return SGX_ERROR_UNEXPECTED;
-        }
         memcpy(sealedStr, tmp, outlen);
         //oc_deliver_unseal_string(v.c_str());
         recoveryMap.erase(nKey);

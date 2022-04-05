@@ -140,11 +140,11 @@ int aes_gcm_encrypt(const unsigned char* key, int key_len,
     EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, iv_len, NULL);
     EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv);
     int len = 0;
-    while(len <= plen - 16)
+    while(len <= plen - 128)
     {
-        EVP_EncryptUpdate(ctx, CIPHERTEXT+len, &howmany, plain_text+len, 16);
+        EVP_EncryptUpdate(ctx, CIPHERTEXT+len, &howmany, plain_text+len, 128);
         *outlen += howmany;
-        len += 16;
+        len += 128;
     }
     EVP_EncryptUpdate(ctx, CIPHERTEXT + len, &howmany, plain_text + len, plen - len);
     *outlen += howmany;
@@ -173,16 +173,18 @@ int aes_gcm_decrypt(const unsigned char* key, int key_len,
     EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, iv_len, NULL);
     EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv);
     int len = 0;
-    while(len <= ct_len - 16)
+    while(len <= ct_len - 128)
     {
-        EVP_DecryptUpdate(ctx, outbuf+len, &howmany, CIPHERTEXT, 16);
+        EVP_DecryptUpdate(ctx, outbuf+len, &howmany, CIPHERTEXT, 128);
         *outlen += howmany;
-        len += 16;
+        len +=128; 
     }
     EVP_DecryptUpdate(ctx, outbuf+len, &howmany, CIPHERTEXT, ct_len-len);
+    //EVP_DecryptUpdate(ctx, outbuf, &howmany, CIPHERTEXT, ct_len);
     *outlen += howmany;
     int success = EVP_DecryptFinal_ex(ctx, outbuf, &howmany);
     *outlen += howmany;
     EVP_CIPHER_CTX_free(ctx);
     return success;
 }
+

@@ -11,8 +11,8 @@ enclave {
         public sgx_status_t ec_rsa_encrypt([in,string]const char* str);
         public sgx_status_t ec_rsa_decrypt([in,string]const char* str);
 
-        public sgx_status_t ec_aes_encrypt([in,string]char* str);
-        public sgx_status_t ec_aes_decrypt([in,string]char* str);
+        public sgx_status_t ec_aes_gcm_encrypt([in,string]char* str);
+        public sgx_status_t ec_aes_gcm_decrypt([in,string]char* shared, [in, string]char* ciphertext);
 
         public uint32_t ec_calc_sealed_size(uint32_t len);
         public sgx_status_t ec_ks_exchange_pair_key([in, string]const char* str);

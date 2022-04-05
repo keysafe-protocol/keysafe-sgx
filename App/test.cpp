@@ -102,7 +102,9 @@ void test_aes_decrypt(sgx_enclave_id_t eid_t, char* str)
 {
     sgx_status_t ret, ret_val;
     printf("To decrypt str\n", str);
-    ret = ec_aes_decrypt(eid_t, &ret_val, str);
+    char shared[]  = "968426f0380ab40d5740893742130731e86c163a33304ac7824d388e52f6eab3";
+    unsigned char ciphertext[] = {114, 131, 171, 231, 32, 156, 68, 233, 109, 16, 209, 21, 38, 181, 218, 48, 84, 54, 54, 82, 90, 136, 40, 102, 239, 193, 183, 15, 187, 165, 25, 217, 85, 9, 13};
+    ret = ec_aes_gcm_decrypt(eid_t, &ret_val, shared, (char*)ciphertext);
     if(ret != SGX_SUCCESS)
     {
         ret_error_support(ret);
