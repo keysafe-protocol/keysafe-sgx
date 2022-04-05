@@ -323,6 +323,8 @@ sgx_status_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
                                                             (unsigned char*)key_pt, klen,
                                                             outbuf, &khowmany);
     int nKey = (int)outbuf[0]*100 + (int)outbuf[1];
+    printf("prove me nKey\n");
+    printf("%d\n", nKey);
     free(outbuf);
 
     std::map<int, std::string>::iterator it  = recoveryMap.find(nKey);
@@ -339,6 +341,9 @@ sgx_status_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
         memcpy(sealedStr, tmp, outlen);
         //oc_deliver_unseal_string(v.c_str());
         recoveryMap.erase(nKey);
+    }
+    else{
+        printf("sealed data not found\n");
     }
     return static_cast<sgx_status_t>(0);
 }
