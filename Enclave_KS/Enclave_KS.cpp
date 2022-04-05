@@ -322,6 +322,8 @@ sgx_status_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
                                                             IV, sizeof(IV),
                                                             (unsigned char*)key_pt, klen,
                                                             outbuf, &khowmany);
+    printf("decrypt buf\n");
+    printf("%s\n", outbuf);
     int nKey = (int)outbuf[0]*100 + (int)outbuf[1];
     printf("prove me nKey\n");
     printf("%d\n", nKey);
