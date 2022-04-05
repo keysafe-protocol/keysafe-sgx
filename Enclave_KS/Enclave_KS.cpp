@@ -211,15 +211,16 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
                                     out, &outhowmany);
     printf("ks_seal: %s\n", out);
 
-
-    uint8_t* encrypt_data = (uint8_t*)malloc(len2);
+    uint8_t* encrypt_data = (uint8_t*)malloc(outhowmany);
+    /*
     if(encrypt_data == NULL)
     {
         free(out);
         return SGX_ERROR_INVALID_PARAMETER;
     }
-    memset(encrypt_data, 0, len2);
-    memcpy(encrypt_data, str2, len2);
+    */
+    memset(encrypt_data, 0, outhowmany);
+    memcpy(encrypt_data, out, outhowmany);
 
     uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, (uint32_t)len2);
     printf("seal data size %d\n", sealed_data_size);
@@ -236,6 +237,7 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
         printf("tem sealed new failed\n");
         free(out);
         free(temp_sealed_buff);
+        free(encrypt_data);
         return SGX_ERROR_OUT_OF_MEMORY;
 
     }
@@ -261,6 +263,7 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
    // oc_deliver_sealed_string(temp_sealed_buff);
 
     free(out);
+    free(encrypt_data);
     free(temp_sealed_buff);
 
     return err;
