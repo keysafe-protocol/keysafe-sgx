@@ -296,6 +296,7 @@ uint32_t ec_ks_unseal(const char* pkey, uint8_t* str, uint32_t data_size)
                                         &decrypt_data_len);
     if(ret != SGX_SUCCESS)
     {
+        printf("unseal failed\n");
         free(de_mac_text);
         free(decrypt_data);
         return ret;
