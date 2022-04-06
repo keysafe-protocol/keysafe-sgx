@@ -215,6 +215,8 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
     */
     memset(encrypt_data, 0, outhowmany);
     memcpy(encrypt_data, out, outhowmany);
+    printf("before seal\n");
+    printf("%s\n", encrypt_data);
 
     printf("decrypt howmany\n");
     printf("%d\n", outhowmany);
@@ -329,6 +331,8 @@ sgx_status_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
     {
         std::string v = it->second;
 
+        printf("prove me : before encrypt\n");
+        printf("%s\n", v.c_str());
         int outlen = (v.length()/16+1)*16;
         int ohowmany = 0;
         unsigned char* tmp = (unsigned char*)malloc(outlen);
