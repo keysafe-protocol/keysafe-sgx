@@ -13,7 +13,7 @@ char* test_out_public_key(sgx_enclave_id_t eid_t, char* userpkHex)
     char* str = (char*)malloc(256);
     char* sharedStr = (char*)malloc(256);
     ret = ec_ks_exchange(eid_t,&ret_val, userpkHex, str, sharedStr);
-    //printf("%s %d %d\n", str, ret, ret_val);
+    printf("%s %d %d\n", str, ret, ret_val);
     free(sharedStr);
     //ret = ec_rand_num(eid_t, &ret_val);
     if(ret != SGX_SUCCESS)
@@ -166,7 +166,8 @@ void test_read_unseal_data(sgx_enclave_id_t eid_unseal, uint8_t* sealedBlob, uin
         return;
     }
     char* unsealStr = (char*)malloc(8192);
-    ret = ec_prove_me(eid_unseal, &ret_val, (uint8_t*)&randVal, 10, unsealStr);
+    uint32_t len = 0;
+    ret = ec_prove_me(eid_unseal, &len, (uint8_t*)&randVal, 10, unsealStr);
     if (ret != SGX_SUCCESS)
     {
         ret_error_support(ret);

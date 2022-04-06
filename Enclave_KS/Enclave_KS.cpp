@@ -312,7 +312,7 @@ uint32_t ec_ks_unseal(const char* pkey, uint8_t* str, uint32_t data_size)
     return retVal;
 }
 
-sgx_status_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
+uint32_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
 
@@ -345,15 +345,16 @@ sgx_status_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
         aes_gcm_encrypt((unsigned char*)shared, 256, IV, sizeof(IV),
                                             (const unsigned char*)v.c_str(), v.length(),
                                             tmp, &ohowmany);
-        memcpy(sealedStr, tmp, outlen);
+        memcpy(sealedStr, tmp, ohowmany);
         //oc_deliver_unseal_string(v.c_str());
         recoveryMap.erase(nKey);
         free(tmp);
+        return ohowmany;
     }
     else{
         printf("sealed data not found\n");
     }
-    return static_cast<sgx_status_t>(0);
+    return 0;
 }
 
 sgx_status_t ec_rsa_decrypt(const char *str)
