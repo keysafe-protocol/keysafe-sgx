@@ -148,7 +148,8 @@ sgx_status_t ec_ks_exchange(char* userpkeyHex, char*  enclaveHex, char* sharedSt
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
     memset(shared, 0, sizeof(shared));
-    printf("user hex %s\n", userpkeyHex);
+    printf("user hex \n");
+    printf("%s\n", userpkeyHex);
     const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
     ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
     //devliver the enclave ecc public key hex code
@@ -156,7 +157,8 @@ sgx_status_t ec_ks_exchange(char* userpkeyHex, char*  enclaveHex, char* sharedSt
 
     EC_POINT *uPoint = EC_POINT_hex2point(group, userpkeyHex, NULL, NULL);
     ECDH_compute_key(shared, 256, uPoint, ec_pkey, NULL);
-    printf("enclave shared key : %s\n", shared);
+    printf("enclave sk\n");
+    printf("%s\n", shared);
 
     memcpy(sharedStr, shared, 256);
 
@@ -342,6 +344,7 @@ sgx_status_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
         memcpy(sealedStr, tmp, outlen);
         //oc_deliver_unseal_string(v.c_str());
         recoveryMap.erase(nKey);
+        free(tmp);
     }
     else{
         printf("sealed data not found\n");
