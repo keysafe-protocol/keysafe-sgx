@@ -156,11 +156,15 @@ sgx_status_t ec_ks_exchange(char* userpkeyHex, char*  enclaveHex, char* sharedSt
     memcpy(enclaveHex,  ec_pkey_hex, strlen(ec_pkey_hex));
 
     EC_POINT *uPoint = EC_POINT_hex2point(group, userpkeyHex, NULL, NULL);
-    ECDH_compute_key(shared, 256, uPoint, ec_pkey, NULL);
+    int len = ECDH_compute_key(shared, 256, uPoint, ec_pkey, NULL);
     printf("enclave sk\n");
-    printf("%s\n", shared);
+    for(int i = 0;i<len;i++)
+    {
+        printf("%u", shared[i]);
+    }
+    printf("\n");
 
-    memcpy(sharedStr, shared, 256);
+    memcpy(sharedStr, shared, len);
 
     return static_cast<sgx_status_t>(0);
 }

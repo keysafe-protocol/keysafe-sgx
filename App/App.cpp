@@ -122,10 +122,13 @@ int main(int argc, char* argv[])
 
         sgx_enclave_id_t eid_t = instance->getEid();
         test_gen_key(eid_t);
-        char* enclavepkHex = test_out_public_key(eid_t, ec_pkey_hex);
-        //test_get_public_key(eid_t);
-        //test_gen_rand_num(eid_t);
-        //test_encrypt(eid_t, "please encrypte me");
+        for(int i = 0;i<10;i++)
+        {
+            printf("=============>\n");
+            char *enclavepkHex = test_out_public_key(eid_t, ec_pkey_hex);
+            printf("=============>\n");
+        }
+        /*
         if(NULL != enclavepkHex)
         {
             EC_POINT *uPoint = EC_POINT_hex2point(group, enclavepkHex, NULL, NULL);
@@ -151,6 +154,7 @@ int main(int argc, char* argv[])
 
             free(enclavepkHex);
         }
+    */
         printf("success\n");
     }
     delete instance;
