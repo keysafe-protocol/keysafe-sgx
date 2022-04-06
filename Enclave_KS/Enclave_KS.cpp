@@ -144,16 +144,10 @@ sgx_status_t ec_rsa_encrypt(const char* from)
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_ks_exchange_pair_key(const char* str)
-{
-    auto lock = KSSpinLock(&ks_op_spin_lock);
-    deliver_public_key();
-    return static_cast<sgx_status_t>(0);
-}
-
 sgx_status_t ec_ks_exchange(char* userpkeyHex, char*  enclaveHex, char* sharedStr)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
+    memset(shared, 0, sizeof(shared));
     printf("user hex %s\n", userpkeyHex);
     const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
     ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
