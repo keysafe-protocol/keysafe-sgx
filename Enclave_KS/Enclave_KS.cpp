@@ -275,7 +275,10 @@ uint32_t ec_ks_unseal(const char* pkey, uint8_t* str, uint32_t data_size)
     uint32_t decrypt_data_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t*)str);
 
     printf("Ready to unseal\n");
-    printf("%s",(char*)str);
+    for(int i = 0;i<data_size;i++)
+    {
+        printf("%u", str[i]);
+    }
     printf(" %ld", data_size);
     printf("\n");
     uint8_t* decrypt_data = (uint8_t*)malloc(decrypt_data_len);
