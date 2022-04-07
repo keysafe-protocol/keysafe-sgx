@@ -186,7 +186,7 @@ sgx_status_t ec_aes_gcm_decrypt(char* sharedStr, char* ciphertext)
     aes_gcm_decrypt((unsigned char*) sharedStr, 256, IV, sizeof(IV),
                                                             (const unsigned char*)ciphertext, strlen(ciphertext),
                                                             out, &oh);
-    printf("%s\n", out);
+    //printf("%s\n", out);
     free(out);
     return static_cast<sgx_status_t>(0);
 }
@@ -209,7 +209,7 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
     aes_gcm_decrypt((unsigned char*)shared, 256, IV, sizeof(IV),
                                     (const unsigned char*)str, len,
                                     out, &outhowmany);
-    printf("ks_seal: %s\n", out);
+    //printf("ks_seal: %s\n", out);
 
     uint8_t* encrypt_data = (uint8_t*)malloc(outhowmany);
     /*
@@ -221,11 +221,13 @@ sgx_status_t ec_ks_seal(const char *str, int len,  const char* str2, int len2, u
     */
     memset(encrypt_data, 0, outhowmany);
     memcpy(encrypt_data, out, outhowmany);
+    /*
     printf("before seal\n");
     printf("%s\n", encrypt_data);
 
     printf("decrypt howmany\n");
     printf("%d\n", outhowmany);
+    */
 
     uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, (uint32_t)outhowmany);
     printf("seal data size %d\n", sealed_data_size);
@@ -344,8 +346,10 @@ uint32_t ec_prove_me(uint8_t* key_pt, int klen, char* sealedStr)
     {
         std::string v = it->second;
 
+        /*
         printf("prove me : before encrypt\n");
         printf("%s\n", v.c_str());
+        */
         int outlen = (v.length()/16+1)*16;
         int ohowmany = 0;
         unsigned char* tmp = (unsigned char*)malloc(outlen);

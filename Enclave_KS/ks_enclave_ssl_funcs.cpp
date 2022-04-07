@@ -175,11 +175,11 @@ int aes_gcm_decrypt(const unsigned char* key, int key_len,
     int len = 0;
     while(len <= ct_len - 128)
     {
-        EVP_DecryptUpdate(ctx, outbuf+len, &howmany, CIPHERTEXT, 128);
+        EVP_DecryptUpdate(ctx, outbuf+len, &howmany, CIPHERTEXT+len, 128);
         *outlen += howmany;
-        len +=128; 
+        len +=128;
     }
-    EVP_DecryptUpdate(ctx, outbuf+len, &howmany, CIPHERTEXT, ct_len-len);
+    EVP_DecryptUpdate(ctx, outbuf+len, &howmany, CIPHERTEXT+len, ct_len-len);
     //EVP_DecryptUpdate(ctx, outbuf, &howmany, CIPHERTEXT, ct_len);
     *outlen += howmany;
     int success = EVP_DecryptFinal_ex(ctx, outbuf, &howmany);
