@@ -276,6 +276,7 @@ uint32_t ec_ks_unseal(const char* pkey, uint8_t* str, uint32_t data_size)
 
     printf("Ready to unseal\n");
     printf("%s",(char*)str);
+    printf(" %ld", data_size);
     printf("\n");
     uint8_t* decrypt_data = (uint8_t*)malloc(decrypt_data_len);
     if(decrypt_data == NULL)
