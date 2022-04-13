@@ -75,7 +75,7 @@ uint8_t* unseal_data(uint8_t* sealed_data, uint32_t* decrypt_data_len)
     return decrypt_data;
 }
 
-sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len)
+sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_secret)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
     uint8_t buf[SECRET_BITS / 8 + MAX_SCRATCHCODES * BYTES_PER_SCRATCHCODE];
@@ -104,11 +104,21 @@ sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len)
     
     memcpy(secret, sealed_data, sealed_size);
     free(sealed_data);
+
+    int outLen = (sizeof(s)/16+1)*16;
+    unsigned char* out = (unsigned char*)malloc(outLen);
+    int count = 0;
+    aes_gcm_encrypt((const unsigned char*)shared, 256,
+                                    IV, sizeof(IV),
+                                    (const unsigned char*)s, sizeof(s),
+                                    out, &count);
+    memcpy(encrypted_secret, out, count);
+    free(out);
     return static_cast<sgx_status_t>(0);
 }
 
 sgx_status_t ec_check_code(uint8_t *sealed_secret, int len, 
-                                                    uint64_t tm, int code, 
+                                                    uint64_t tm, uint8_t* encrypted_code, int code_len,
                                                     uint8_t* sealed_data, int len2, char* chip)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
@@ -120,6 +130,16 @@ sgx_status_t ec_check_code(uint8_t *sealed_secret, int len,
         return SGX_ERROR_UNEXPECTED;
     }
 
+    int outLen = (code_len/16+1)*16;
+    int count = 0;
+    unsigned char*  decrypted_code = (unsigned char*)malloc(outLen);
+    aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+                                    encrypted_code, code_len,
+                                    decrypted_code, &count);
+    printf("decrypted code\n");
+    printf("%s\n", decrypted_code);
+
+    int code = atoi((const char*)decrypted_code);
     const unsigned long t = tm / 30;
     const int correct_code = generateCode((char *)out, t);
     free(out);
