@@ -122,12 +122,7 @@ int main(int argc, char* argv[])
 
         sgx_enclave_id_t eid_t = instance->getEid();
         test_gen_key(eid_t);
-        for(int i = 0;i<10;i++)
-        {
-            printf("=============>\n");
-            char *enclavepkHex = test_out_public_key(eid_t, ec_pkey_hex);
-            printf("=============>\n");
-        }
+        test_gen_gauth_secret(eid_t);
         /*
         if(NULL != enclavepkHex)
         {

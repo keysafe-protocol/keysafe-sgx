@@ -124,10 +124,12 @@ Enclave_Link_Flags := $(Enclave_Security_Link_Flags) \
 
 # 如果有新的模块加入，则需要增加新的make
 Enclave_KS_Cpp_Files := $(wildcard Enclave_KS/*.cpp)
+Enclave_KS_C_Files := $(wildcard Enclave_KS/*.c)
 Enclave_KS_Cpp_Objects := $(Enclave_KS_Cpp_Files:.cpp=.o)
+Enclave_KS_C_Objects := $(Enclave_KS_C_Files:.c=.o)
 Gen_Trusted_Source_KS := Enclave_KS/Enclave_KS_t.c
 Gen_Trusted_Object_KS := Enclave_KS/Enclave_KS_t.o
-Enclave_KS_Objects := $(Gen_Trusted_Object_KS) $(Enclave_KS_Cpp_Files:.cpp=.o)
+Enclave_KS_Objects := $(Gen_Trusted_Object_KS) $(Enclave_KS_Cpp_Files:.cpp=.o) $(Enclave_KS_C_Files:.c=.o)
 
 Enclave_KS_Name := libenclave_ks.so
 Signed_Enclave_KS_Name := libenclave_ks.signed.so

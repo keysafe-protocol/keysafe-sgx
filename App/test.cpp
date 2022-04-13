@@ -199,3 +199,23 @@ void test_get_public_key(sgx_enclave_id_t eid_t)
         return;
     }
 }
+
+void test_gen_gauth_secret(sgx_enclave_id_t eid_t)
+{
+    sgx_status_t ret, ret_val;
+    uint32_t sealed_size = 0;
+    ec_calc_sealed_size(eid_t, &sealed_size, 210);
+    uint8_t* secret = (uint8_t*)malloc(sealed_size);
+    ret = ec_gen_gauth_secret(eid_t, &ret_val, secret, (int)sealed_size);
+    free(secret);
+    if(ret != SGX_SUCCESS)
+    {
+        ret_error_support(ret);
+        return;
+    }
+    else if(ret_val != SGX_SUCCESS)
+    {
+        ret_error_support(ret_val);
+        return;
+    }
+}
