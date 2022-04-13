@@ -40,6 +40,7 @@ sgx_sealed_data_t *seal_data(uint8_t *data, uint32_t len, uint32_t *sealed_size)
     uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, len);
     if (sealed_data_size == UINT32_MAX)
     {
+        printf("sealed_data_size out of range\n");
         return NULL;
     }
 
@@ -54,8 +55,10 @@ sgx_sealed_data_t *seal_data(uint8_t *data, uint32_t len, uint32_t *sealed_size)
                                                                 (sgx_sealed_data_t *)temp_sealed_buff);
     if(err != SGX_SUCCESS)
     {
+        printf("seal_data | seal failed\n");
         return NULL;
     }
+    *sealed_size = sealed_data_size;
     return temp_sealed_buff;
 }
 
@@ -75,7 +78,7 @@ uint8_t* unseal_data(uint8_t* sealed_data, uint32_t* decrypt_data_len)
     return decrypt_data;
 }
 
-sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_secret)
+sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_secret, int* slen)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
     uint8_t buf[SECRET_BITS / 8 + MAX_SCRATCHCODES * BYTES_PER_SCRATCHCODE];
@@ -112,6 +115,7 @@ sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_se
                                     IV, sizeof(IV),
                                     (const unsigned char*)s, sizeof(s),
                                     out, &count);
+    *slen = count;
     memcpy(encrypted_secret, out, count);
     free(out);
     return static_cast<sgx_status_t>(0);
