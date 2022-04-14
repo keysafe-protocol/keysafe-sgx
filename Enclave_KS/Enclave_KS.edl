@@ -14,8 +14,8 @@ enclave {
         public sgx_status_t ec_aes_gcm_encrypt([in,string]char* str);
         public sgx_status_t ec_aes_gcm_decrypt([in,string]char* shared, [in, string]char* ciphertext);
 
-        public sgx_status_t ec_gen_gauth_secret([out, size=len]uint8_t* sealedSecret, int len, 
-                                                                                    [out, size=256]uint8_t* encrypted_secret, [out]int* slen);
+        public uint32_t ec_gen_gauth_secret([out, size=len]uint8_t* sealedSecret, int len, 
+                                                                                    [out, size=256]uint8_t* encrypted_secret);
         public sgx_status_t ec_check_code([in, size=len]uint8_t* sealed_secret, int len, 
                                             uint64_t tm, [in ,size=code_len]uint8_t* encrypted_code, int code_len, 
                                             [in, size=len2]uint8_t* sealed_data, int len2, [out, size=8192]char* chip);
