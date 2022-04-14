@@ -120,7 +120,7 @@ sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_se
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_check_code(uint8_t *sealed_secret, int len, 
+uint32_t ec_check_code(uint8_t *sealed_secret, int len, 
                                                     uint64_t tm, uint8_t* encrypted_code, int code_len,
                                                     uint8_t* sealed_data, int len2, char* chip)
 {
@@ -154,10 +154,20 @@ sgx_status_t ec_check_code(uint8_t *sealed_secret, int len,
     if(code == correct_code)
     {
         out = unseal_data(sealed_data, &data_len);
-        memcpy(chip, out, data_len);
+        int cipherlen = (data_len/16+1)*16;
+        int count = 0;
+        unsigned char* cipher = (unsigned char*)malloc(cipherlen + 1);
+        aes_gcm_encrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+                                            out, data_len,
+                                            cipher, &count);
+
+
+        memcpy(chip, cipher, count);
         free(out);
+        free(cipher);
+        return count;
     }
-    return static_cast<sgx_status_t>(0);
+    return 0;
 }
 
 void ecc_key_gen()
@@ -451,7 +461,7 @@ uint32_t ec_ks_unseal(const char *pkey, uint8_t *str, uint32_t data_size)
     return retVal;
 }
 
-uint32_t ec_prove_me(uint8_t *key_pt, int klen, char *sealedStr)
+uint32_t ec_prove_me(uint8_t *key_pt, int klen, char * unsealStr)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
 
@@ -486,7 +496,7 @@ uint32_t ec_prove_me(uint8_t *key_pt, int klen, char *sealedStr)
         aes_gcm_encrypt((unsigned char *)shared, 256, IV, sizeof(IV),
                         (const unsigned char *)v.c_str(), v.length(),
                         tmp, &ohowmany);
-        memcpy(sealedStr, tmp, ohowmany);
+        memcpy(unsealStr, tmp, ohowmany);
         // oc_deliver_unseal_string(v.c_str());
         recoveryMap.erase(nKey);
         free(tmp);
