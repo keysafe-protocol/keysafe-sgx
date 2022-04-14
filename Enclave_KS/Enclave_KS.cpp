@@ -78,7 +78,7 @@ uint8_t* unseal_data(uint8_t* sealed_data, uint32_t* decrypt_data_len)
     return decrypt_data;
 }
 
-uint32_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_secret)
+sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_secret)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
     uint8_t buf[SECRET_BITS / 8 + MAX_SCRATCHCODES * BYTES_PER_SCRATCHCODE];
@@ -117,7 +117,7 @@ uint32_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_secret
                                     out, &count);
     memcpy(encrypted_secret, out, count);
     free(out);
-    return (uint32_t)count;
+    return static_cast<sgx_status_t>(0);
 }
 
 sgx_status_t ec_check_code(uint8_t *sealed_secret, int len, 

@@ -210,8 +210,7 @@ void test_gen_gauth_secret(sgx_enclave_id_t eid_t)
     printf("calc sealed size %d\n", sealed_size);
     uint8_t* secret = (uint8_t*)malloc(sealed_size);
     uint8_t* encrypted_secret = (uint8_t*)malloc(256);
-    ret = ec_gen_gauth_secret(eid_t, &slen, secret, (int)sealed_size, encrypted_secret);
-    printf("%d %d\n", slen, sealed_len);
+    ret = ec_gen_gauth_secret(eid_t, &ret_val, secret, (int)sealed_size, encrypted_secret);
     free(secret);
     if(ret != SGX_SUCCESS)
     {
