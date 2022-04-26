@@ -14,12 +14,19 @@ typedef enum INIT_STEP
 class User{
     public:
         void Exchange(const char* userpkeyHex, const char* sharedStr);
+
         void SetAccount(const char* account){ m_account.append(account); }
+
+        void SetEmail(const char* email){
+            m_email.clear();
+            m_email.append(email);
+        }
 
     private:
         std::string m_account;
         std::string m_shared;
         std::string m_userpkeyHex;
+        std::string m_email;
 
         INIT_STEP m_step = EMPTY;
 };

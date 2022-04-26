@@ -568,13 +568,67 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
 
 uint32_t ec_gen_register_mail_code(const char* account, uint8_t* content, uint32_t content_len)
 {
-    return 0;
+    const char* shared = UserManager::Instance()->GetShared(account);
+    if(NULL == shared)
+    {
+        printf("ec_gen_register_mail_code : failed\n");
+        return 0;
+    }
+
+    int outLen = (content_len/16+1)*16;
+    int len = 0;
+    uint8_t* out = (uint8_t*)malloc(outLen);
+    aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+            content, content_len,
+            out, &len);
+
+    if(len <= 0)
+    {
+        printf("ec_gen_register_mail_code : decrypted failed\n");
+        return 0;
+    }
+
+    uint32_t code = gen_random_code();
+    UserManager::Instance()->PushUserMailMap(code, (const char*)out);
+    return code;
 }
 
 sgx_status_t ec_register_mail(const char* account,
         uint8_t* code_cipher, uint32_t cipher_code_len,
         uint8_t* sealedStr, int sealedSize)
 {
+    const char* shared = UserManager::Instance()->GetShared(account);
+
+    if(NULL == shared)
+    {
+        printf("ec_register_mail failed : account not exist\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    int outLen = (cipher_code_len/16+1)*16;
+    int outhowmany = 0;
+    uint8_t* out = (uint8_t*)malloc(outLen);
+    aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+            code_cipher, cipher_code_len,
+            out, &outhowmany);
+
+    int code = atoi((char*)out);
+    if(UserManager::Instance()->EmailIndexExisted(code))
+    {
+        const char* email = UserManager::Instance()->GetEmail(code);
+        User user = UserManager::Instance()->GetUser(account);
+        user.SetEmail(email);
+        UserManager::Instance()->RemoveUserMailIndex(code);
+
+        uint32_t sealed_size = 0;
+        sgx_sealed_data_t* sealed_data = seal_data(reinterpret_cast<uint8_t*>(const_cast<char*>(email)), strlen(email), &sealed_size);
+        memcpy(sealedStr, sealed_data, sealed_size);
+    }
+    else{
+        printf("ec_register_mail failed : code not exist\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
     return static_cast<sgx_status_t>(0);
 }
 

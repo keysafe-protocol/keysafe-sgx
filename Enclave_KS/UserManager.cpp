@@ -92,4 +92,43 @@ void UserManager::RemoveUserIndex(int code)
     m_userIndexMap.erase(code);
 }
 
+void UserManager::PushUserMailMap(int code, const char* mail)
+{
+    std::string k;
+    k.append(mail);
+    m_userMailMap[code] = mail;
+}
+
+bool UserManager::EmailIndexExisted(int code)
+{
+    auto it = m_userMailMap.find(code);
+    return (it != m_userMailMap.end()) ? true:false;
+}
+
+void UserManager::RemoveUserMailIndex(int code)
+{
+    m_userMailMap.erase(code);
+}
+
+const char* UserManager::GetEmail(int code)
+{
+    auto it = m_userMailMap.find(code);
+    if(it == m_userMailMap.end())
+        return NULL;
+
+    std::string email = it->second;
+    return email.c_str();
+}
+
+User& UserManager::GetUser(const char* account)
+{
+    std::string k;
+    k.append(account);
+    auto it = m_userAvaliableMap.find(k);
+    std::string hex = it->second;
+
+    auto uit = m_userExchangedMap.find(hex);
+    return uit->second;
+}
+
 
