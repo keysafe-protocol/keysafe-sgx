@@ -24,6 +24,7 @@ enclave {
 
         public uint32_t ec_calc_sealed_size(uint32_t len);
 
+        //to remove sharedStr parameter
         public sgx_status_t ec_ks_exchange([in, string]char* userpkeyHex, [out,size=256]char* enclaveHex, [out, size=256]char* sharedStr);
 
         public sgx_status_t ec_ks_seal([in, size=len]const char *str, int len, 
@@ -34,6 +35,8 @@ enclave {
                                                                 [in, size=condition_size] uint8_t* condition, uint32_t condition_size, 
                                                                 [in, size=sealed_data_size]uint8_t* sealed_data, uint32_t sealed_data_size, 
                                                                 [out, size=encrypted_unseal_data_size]uint8_t* encrypted_unseal_data, uint32_t encrypted_unseal_data_size);
+
+        //new func ec_ks_unseal4gauth
 
         public uint32_t ec_ks_unseal([in, string]const char* pkey, [in, size=data_size] uint8_t* str, uint32_t data_size);
 

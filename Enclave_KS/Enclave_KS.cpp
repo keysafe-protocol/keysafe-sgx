@@ -15,6 +15,8 @@
 #include "gauth.h"
 #include "base32.h"
 #include "KSSpinLock.h"
+#include "User.h"
+#include "UserManager.h"
 
 #define ADD_ENTROPY_SIZE 32
 
@@ -35,6 +37,15 @@ EC_KEY *ec_pkey = NULL;
 EC_GROUP *group = NULL;
 char *ec_pkey_hex = NULL;
 
+uint32_t gen_random_code()
+{
+    uint32_t retVal = 0;
+    unsigned char a[1];
+    sgx_read_rand(a, 1);
+    retVal = (int)a[0] * 100 + (int)a[1];
+    return retVal;
+}
+
 sgx_sealed_data_t *seal_data(uint8_t *data, uint32_t len, uint32_t *sealed_size)
 {
     uint32_t sealed_data_size = sgx_calc_sealed_data_size(0, len);
@@ -51,8 +62,8 @@ sgx_sealed_data_t *seal_data(uint8_t *data, uint32_t len, uint32_t *sealed_size)
     }
 
     sgx_status_t err = sgx_seal_data(0, NULL, len, data,
-                                                                sealed_data_size,
-                                                                (sgx_sealed_data_t *)temp_sealed_buff);
+            sealed_data_size,
+            (sgx_sealed_data_t *)temp_sealed_buff);
     if(err != SGX_SUCCESS)
     {
         printf("seal_data | seal failed\n");
@@ -69,7 +80,7 @@ uint8_t* unseal_data(uint8_t* sealed_data, uint32_t* decrypt_data_len)
     uint8_t* decrypt_data = (uint8_t*)malloc(*decrypt_data_len);
 
     sgx_status_t ret = sgx_unseal_data((const sgx_sealed_data_t*)sealed_data, NULL, &mac_text_len,
-                                                                    decrypt_data, decrypt_data_len);
+            decrypt_data, decrypt_data_len);
     if(ret != SGX_SUCCESS)
     {
         return NULL;
@@ -89,14 +100,14 @@ sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_se
     static const char window[] = "\" WINDOW_SIZE 17\n";
     static const char ratelimit[] = "\" RATE_LIMIT 3 30\n";
     char s[(SECRET_BITS + BITS_PER_BASE32_CHAR - 1) / BITS_PER_BASE32_CHAR +
-           1 /* newline */ +
-           sizeof(hotp) + // hotp and totp are mutually exclusive.
-           sizeof(disallow) +
-           sizeof(step) +
-           sizeof(window) +
-           sizeof(ratelimit) + 5 + // NN MMM (total of five digits)
-           SCRATCHCODE_LENGTH * (MAX_SCRATCHCODES + 1 /* newline */) +
-           1 /* NUL termination character */];
+        1 /* newline */ +
+        sizeof(hotp) + // hotp and totp are mutually exclusive.
+        sizeof(disallow) +
+        sizeof(step) +
+        sizeof(window) +
+        sizeof(ratelimit) + 5 + // NN MMM (total of five digits)
+        SCRATCHCODE_LENGTH * (MAX_SCRATCHCODES + 1 /* newline */) +
+        1 /* NUL termination character */];
     sgx_read_rand(buf, sizeof(buf));
     base32_encode(buf, SECRET_BITS / 8, (uint8_t *)s, sizeof(s));
 
@@ -112,17 +123,17 @@ sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_se
     unsigned char* out = (unsigned char*)malloc(outLen);
     int count = 0;
     aes_gcm_encrypt((const unsigned char*)shared, 256,
-                                    IV, sizeof(IV),
-                                    (const unsigned char*)s, sizeof(s),
-                                    out, &count);
+            IV, sizeof(IV),
+            (const unsigned char*)s, sizeof(s),
+            out, &count);
     memcpy(encrypted_secret, out, count);
     free(out);
     return static_cast<sgx_status_t>(0);
 }
 
 uint32_t ec_check_code(uint8_t *sealed_secret, int len,
-                                                    uint64_t tm, uint8_t* encrypted_code, int code_len,
-                                                    uint8_t* sealed_data, int len2, char* chip)
+        uint64_t tm, uint8_t* encrypted_code, int code_len,
+        uint8_t* sealed_data, int len2, char* chip)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
 
@@ -137,8 +148,8 @@ uint32_t ec_check_code(uint8_t *sealed_secret, int len,
     int count = 0;
     unsigned char*  decrypted_code = (unsigned char*)malloc(outLen);
     aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
-                                    encrypted_code, code_len,
-                                    decrypted_code, &count);
+            encrypted_code, code_len,
+            decrypted_code, &count);
     printf("decrypted code\n");
     printf("%s\n", decrypted_code);
 
@@ -158,8 +169,8 @@ uint32_t ec_check_code(uint8_t *sealed_secret, int len,
         int count = 0;
         unsigned char* cipher = (unsigned char*)malloc(cipherlen + 1);
         aes_gcm_encrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
-                                            out, data_len,
-                                            cipher, &count);
+                out, data_len,
+                cipher, &count);
 
 
         memcpy(chip, cipher, count);
@@ -289,19 +300,27 @@ sgx_status_t ec_rsa_encrypt(const char *from)
 sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
+    if(UserManager::Instance()->ExchangeUserExisted(userpkeyHex))
+    {
+        return static_cast<sgx_status_t>(0);
+    }
+    else{
+        char shared[256];
+        memset(shared, 0, sizeof(shared));
+        const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
+        ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
+        memcpy(enclaveHex, ec_pkey_hex, strlen(ec_pkey_hex));
 
-    memset(shared, 0, sizeof(shared));
-    printf("user hex \n");
-    printf("%s\n", userpkeyHex);
-    const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
-    ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
-    // devliver the enclave ecc public key hex code
-    memcpy(enclaveHex, ec_pkey_hex, strlen(ec_pkey_hex));
+        EC_POINT *uPoint = EC_POINT_hex2point(group, userpkeyHex, NULL, NULL);
+        int len = ECDH_compute_key(shared, 256, uPoint, ec_pkey, NULL);
 
-    EC_POINT *uPoint = EC_POINT_hex2point(group, userpkeyHex, NULL, NULL);
-    int len = ECDH_compute_key(shared, 256, uPoint, ec_pkey, NULL);
+        User user;
+        user.Exchange(userpkeyHex, shared);
+        UserManager::Instance()->PushExchangeUser(userpkeyHex, user);
 
-    memcpy(sharedStr, shared, len);
+        memcpy(sharedStr, shared, len);
+
+    }
 
     return static_cast<sgx_status_t>(0);
 }
@@ -321,8 +340,8 @@ sgx_status_t ec_aes_gcm_decrypt(char *sharedStr, char *ciphertext)
     unsigned char *out = (unsigned char *)malloc(outLen);
     memset(out, 0, outLen);
     aes_gcm_decrypt((unsigned char *)sharedStr, 256, IV, sizeof(IV),
-                    (const unsigned char *)ciphertext, strlen(ciphertext),
-                    out, &oh);
+            (const unsigned char *)ciphertext, strlen(ciphertext),
+            out, &oh);
     // printf("%s\n", out);
     free(out);
     return static_cast<sgx_status_t>(0);
@@ -343,8 +362,8 @@ sgx_status_t ec_ks_seal(const char *str, int len, uint8_t *sealedStr, int sealed
     memset(out, 0, outLen);
     int outhowmany = 0;
     aes_gcm_decrypt((unsigned char *)shared, 256, IV, sizeof(IV),
-                    (const unsigned char *)str, len,
-                    out, &outhowmany);
+            (const unsigned char *)str, len,
+            out, &outhowmany);
 
     uint8_t *encrypt_data = (uint8_t *)malloc(outhowmany);
     memset(encrypt_data, 0, outhowmany);
@@ -370,11 +389,11 @@ sgx_status_t ec_ks_seal(const char *str, int len, uint8_t *sealedStr, int sealed
     }
 
     sgx_status_t err = sgx_seal_data(0,
-                                     NULL,
-                                     outhowmany,
-                                     encrypt_data,
-                                     sealed_data_size,
-                                     (sgx_sealed_data_t *)temp_sealed_buff);
+            NULL,
+            outhowmany,
+            encrypt_data,
+            sealed_data_size,
+            (sgx_sealed_data_t *)temp_sealed_buff);
 
     if (err == SGX_SUCCESS)
     {
@@ -389,10 +408,10 @@ sgx_status_t ec_ks_seal(const char *str, int len, uint8_t *sealedStr, int sealed
 }
 
 uint32_t ec_ks_unseal2(const char* account,
-                                        uint8_t* code_cipher, uint32_t cipher_code_len,
-                                        uint8_t* condition, uint32_t conditon_size,
-                                        uint8_t* sealed_data, uint32_t sealed_data_size,
-                                        uint8_t* encrypted_unseal_data, uint32_t encrypted_unseal_data_size)
+        uint8_t* code_cipher, uint32_t cipher_code_len,
+        uint8_t* condition, uint32_t conditon_size,
+        uint8_t* sealed_data, uint32_t sealed_data_size,
+        uint8_t* encrypted_unseal_data, uint32_t encrypted_unseal_data_size)
 {
     return 0;
 }
@@ -400,12 +419,14 @@ uint32_t ec_ks_unseal2(const char* account,
 uint32_t ec_ks_unseal(const char *pkey, uint8_t *str, uint32_t data_size)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
+
     printf("unseal start\n");
     uint32_t mac_text_len = 0;
     uint32_t decrypt_data_len = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)str);
 
     printf("%ld %ld", data_size, decrypt_data_len);
     printf("\n");
+
     uint8_t *decrypt_data = (uint8_t *)malloc(decrypt_data_len);
     if (decrypt_data == NULL)
     {
@@ -414,10 +435,10 @@ uint32_t ec_ks_unseal(const char *pkey, uint8_t *str, uint32_t data_size)
     }
 
     sgx_status_t ret = sgx_unseal_data((const sgx_sealed_data_t *)str,
-                                       NULL,
-                                       &mac_text_len,
-                                       decrypt_data,
-                                       &decrypt_data_len);
+            NULL,
+            &mac_text_len,
+            decrypt_data,
+            &decrypt_data_len);
     if (ret != SGX_SUCCESS)
     {
         printf("unseal failed\n");
@@ -440,9 +461,9 @@ uint32_t ec_ks_unseal(const char *pkey, uint8_t *str, uint32_t data_size)
     printf("random code\n");
     printf("%d\n", retVal);
     /*
-    std::string encryptText = rsa_pub_encrypt(pkey, (const char*)decrypt_data);
-    oc_deliver_unseal_string(encryptText.c_str());
-    */
+       std::string encryptText = rsa_pub_encrypt(pkey, (const char*)decrypt_data);
+       oc_deliver_unseal_string(encryptText.c_str());
+       */
 
     free(decrypt_data);
     return retVal;
@@ -457,9 +478,9 @@ uint32_t ec_prove_me(uint8_t *key_pt, int klen, char * unsealStr)
     memset(outbuf, 0, outlen);
     int khowmany = 0;
     aes_gcm_decrypt((unsigned char *)shared, 256,
-                    IV, sizeof(IV),
-                    (unsigned char *)key_pt, klen,
-                    outbuf, &khowmany);
+            IV, sizeof(IV),
+            (unsigned char *)key_pt, klen,
+            outbuf, &khowmany);
     printf("decrypt buf\n");
     printf("%s\n", outbuf);
     // int nKey = (int)outbuf[0]*100 + (int)outbuf[1];
@@ -473,20 +494,17 @@ uint32_t ec_prove_me(uint8_t *key_pt, int klen, char * unsealStr)
     {
         std::string v = it->second;
 
-        /*
-        printf("prove me : before encrypt\n");
-        printf("%s\n", v.c_str());
-        */
         int outlen = (v.length() / 16 + 1) * 16;
         int ohowmany = 0;
         unsigned char *tmp = (unsigned char *)malloc(outlen);
         aes_gcm_encrypt((unsigned char *)shared, 256, IV, sizeof(IV),
-                        (const unsigned char *)v.c_str(), v.length(),
-                        tmp, &ohowmany);
+                (const unsigned char *)v.c_str(), v.length(),
+                tmp, &ohowmany);
         memcpy(unsealStr, tmp, ohowmany);
         // oc_deliver_unseal_string(v.c_str());
         recoveryMap.erase(nKey);
         free(tmp);
+
         return ohowmany;
     }
     else
@@ -508,11 +526,43 @@ sgx_status_t ec_rsa_decrypt(const char *str)
 
 uint32_t ec_auth(const char* account, const char* userpkeyHex)
 {
+    if(!UserManager::Instance()->ExchangeUserExisted(userpkeyHex))
+        return 0;
+
+    if(UserManager::Instance()->PushAvaliableUser(account, userpkeyHex))
+    {
+        uint32_t code = gen_random_code();
+        std::string strUserPkeyHex;
+        strUserPkeyHex.append(userpkeyHex);
+        UserManager::Instance()->PushUserIndexMap(code, strUserPkeyHex);
+        return code;
+    }
     return 0;
 }
 
 sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t cipher_len)
 {
+    const char* shared = UserManager::Instance()->GetShared(account);
+    if(NULL == shared)
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    int outLen = (cipher_len/16+1)*16;
+    int outhowmany = 0;
+    uint8_t* outbuf = (uint8_t*)malloc(outLen);
+    aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+                    code_cipher, cipher_len,
+                    outbuf, &outhowmany);
+    int code = atoi((char*)outbuf);
+    if(!UserManager::Instance()->UserIndexExisted(code))
+    {
+        UserManager::Instance()->RemoveAvaliableUser(account);
+        UserManager::Instance()->RemoveUserIndex(code);
+        return SGX_ERROR_UNEXPECTED;
+    }
+    UserManager::Instance()->RemoveUserIndex(code);
+
     return static_cast<sgx_status_t>(0);
 }
 
@@ -521,23 +571,23 @@ uint32_t ec_gen_register_mail_code(const char* account, uint8_t* content, uint32
     return 0;
 }
 
-sgx_status_t ec_register_mail(const char* account, 
-                                                    uint8_t* code_cipher, uint32_t cipher_code_len,
-                                                    uint8_t* sealedStr, int sealedSize)
+sgx_status_t ec_register_mail(const char* account,
+        uint8_t* code_cipher, uint32_t cipher_code_len,
+        uint8_t* sealedStr, int sealedSize)
 {
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_register_password(const char* account, 
-                                                    uint8_t* code_cipher, uint32_t cipher_code_len,
-                                                    uint8_t* sealedStr, int sealedSize)
+sgx_status_t ec_register_password(const char* account,
+        uint8_t* code_cipher, uint32_t cipher_code_len,
+        uint8_t* sealedStr, int sealedSize)
 {
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_register_gauth(const char* account, 
-                                                    uint8_t* code_cipher, uint32_t cipher_code_len,
-                                                    uint8_t* sealedStr, int sealedSize)
+sgx_status_t ec_register_gauth(const char* account,
+        uint8_t* code_cipher, uint32_t cipher_code_len,
+        uint8_t* sealedStr, int sealedSize)
 {
     return static_cast<sgx_status_t>(0);
 }
