@@ -353,9 +353,16 @@ uint32_t ec_calc_sealed_size(uint32_t len)
     return sgx_calc_sealed_data_size(0, (uint32_t)len);
 }
 
-sgx_status_t ec_ks_seal(const char *str, int len, uint8_t *sealedStr, int sealedSize)
+sgx_status_t ec_ks_seal(const char* account, const char *str, int len, uint8_t *sealedStr, int sealedSize)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
+    const char* shared = UserManager::Instance()->GetShared(account);
+
+    if(NULL == shared)
+    {
+        printf("ec_register_gauth failed : account not exist\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
 
     int outLen = (len / 16 + 1) * 16;
     unsigned char *out = (unsigned char *)malloc(outLen);
@@ -409,11 +416,162 @@ sgx_status_t ec_ks_seal(const char *str, int len, uint8_t *sealedStr, int sealed
 
 uint32_t ec_ks_unseal2(const char* account,
         uint8_t* code_cipher, uint32_t cipher_code_len,
-        uint8_t* condition, uint32_t conditon_size,
+        const char* condition,
+        uint8_t* condition_value, uint32_t condition_value_size,
         uint8_t* sealed_data, uint32_t sealed_data_size,
-        uint8_t* encrypted_unseal_data, uint32_t encrypted_unseal_data_size)
+        uint8_t* encrypted_unseal_data)
 {
-    return 0;
+    auto lock = KSSpinLock(&ks_op_spin_lock);
+
+    const char* shared = UserManager::Instance()->GetShared(account);
+
+    if(NULL == shared)
+    {
+        printf("ec_ks_unseal failed : account not exist\n");
+        return 0;
+    }
+
+    if(strcmp("password", condition))
+    {
+        int outLen = (cipher_code_len/16+1)*16;
+        int len = 0;
+        uint8_t* out = (uint8_t*)malloc(outLen);
+        aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+                        code_cipher, cipher_code_len,
+                        out, &len);
+        int code = atoi((char*)out);
+        free(out);
+
+        outLen = (condition_value_size/16+1)*16;
+        len = 0;
+        out = (uint8_t*)malloc(outLen);
+        aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+                        condition_value, condition_value_size,
+                        out, &len);
+        int v = atoi((char*)out);
+        if(code != v)
+        {
+            printf("ec_ks_unseal failed : password not equal\n");
+            return 0;
+        }
+        free(out);
+    }
+    else if(strcmp("email", condition))
+    {
+        int outLen = (cipher_code_len/16+1)*16;
+        int len = 0;
+        uint8_t* out = (uint8_t*)malloc(outLen);
+        aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+                        code_cipher, cipher_code_len,
+                        out, &len);
+        int code = atoi((char*)out);
+        free(out);
+
+        const char* email = UserManager::Instance()->GetEmail(code);
+        if(NULL == email)
+        {
+            printf("ec_ks_unseal failed : email index not exist\n");
+            return 0;
+        }
+
+        outLen = (condition_value_size/16+1)*16;
+        len = 0;
+        out = (uint8_t*)malloc(outLen);
+        aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+                        condition_value, condition_value_size,
+                        out, &len);
+        if(strcmp(email, (char*)out) != 0)
+        {
+            printf("ec_ks_unseal failed : email not equal\n");
+            return 0;
+        }
+        free(out);
+
+    }
+    else{
+        printf("ec_ks_unseal : contidon error\n");
+        return 0;
+    }
+
+    uint32_t unseal_size = 0;
+    uint8_t* out = unseal_data(sealed_data, &unseal_size);
+    if(out == NULL)
+    {
+        printf("ec_ks_unseal : unseal failed\n");
+        return 0;
+    }
+
+    int esLen = (unseal_size/16+1)*16;
+    int len = 0;
+    uint8_t* buff = (uint8_t*)malloc(esLen);
+    aes_gcm_encrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+            out, unseal_size,
+            buff, &len);
+    memcpy(encrypted_unseal_data, buff, len);
+    free(buff);
+    return len;
+}
+
+uint32_t ec_ks_unseal_gauth(const char* account,
+                            uint8_t* code_cipher, uint32_t cipher_code_len,
+                            uint64_t tm,
+                            uint8_t* condition, uint32_t condition_size,
+                            uint8_t* sealed_data, uint32_t sealed_data_size,
+                            uint8_t* encrypted_unseal_data)
+{
+    auto lock = KSSpinLock(&ks_op_spin_lock);
+
+    const char* shared = UserManager::Instance()->GetShared(account);
+
+    if(NULL == shared)
+    {
+        printf("ec_ks_unseal4gauth failed : account not exist\n");
+        return 0;
+    }
+
+    int outLen = (cipher_code_len/16+1)*16;
+    int len = 0;
+    uint8_t* buff = (uint8_t*)malloc(outLen);
+    aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+                    code_cipher, cipher_code_len,
+                    buff, &len);
+    int code = atoi((char*)buff);
+    free(buff);
+
+    outLen = (condition_size/16+1)*16;
+    len = 0;
+    uint8_t* secret = (uint8_t*)malloc(outLen);
+    aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+                    condition, condition_size,
+                    secret, &len);
+
+    const unsigned long t = tm/30;
+    const int correct_code = generateCode((char*)secret, t);
+    free(secret);
+
+    if(code != correct_code)
+    {
+        printf("ec_ks_unseal4gauth failed : code not equal\n");
+        return 0;
+    }
+
+    uint32_t unseal_size = 0;
+    uint8_t* out = unseal_data(sealed_data, &unseal_size);
+    if(out == NULL)
+    {
+        printf("ec_ks_unseal4gauth failed : unseal error\n");
+        return 0;
+    }
+
+    int eLen = (unseal_size/16+1)*16;
+    len = 0;
+    buff = (uint8_t*)malloc(eLen);
+    aes_gcm_encrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+            out, unseal_size, buff, &len);
+    memcpy(encrypted_unseal_data, buff, len);
+    free(buff);
+
+    return len;
 }
 
 uint32_t ec_ks_unseal(const char *pkey, uint8_t *str, uint32_t data_size)
@@ -458,12 +616,9 @@ uint32_t ec_ks_unseal(const char *pkey, uint8_t *str, uint32_t data_size)
     std::string v;
     v.append((const char *)decrypt_data, decrypt_data_len);
     recoveryMap[retVal] = v;
+
     printf("random code\n");
     printf("%d\n", retVal);
-    /*
-       std::string encryptText = rsa_pub_encrypt(pkey, (const char*)decrypt_data);
-       oc_deliver_unseal_string(encryptText.c_str());
-       */
 
     free(decrypt_data);
     return retVal;
@@ -526,6 +681,7 @@ sgx_status_t ec_rsa_decrypt(const char *str)
 
 uint32_t ec_auth(const char* account, const char* userpkeyHex)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     if(!UserManager::Instance()->ExchangeUserExisted(userpkeyHex))
         return 0;
 
@@ -542,6 +698,7 @@ uint32_t ec_auth(const char* account, const char* userpkeyHex)
 
 sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t cipher_len)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     const char* shared = UserManager::Instance()->GetShared(account);
     if(NULL == shared)
     {
@@ -555,6 +712,8 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
                     code_cipher, cipher_len,
                     outbuf, &outhowmany);
     int code = atoi((char*)outbuf);
+    free(outbuf);
+
     if(!UserManager::Instance()->UserIndexExisted(code))
     {
         UserManager::Instance()->RemoveAvaliableUser(account);
@@ -568,6 +727,7 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
 
 uint32_t ec_gen_register_mail_code(const char* account, uint8_t* content, uint32_t content_len)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     const char* shared = UserManager::Instance()->GetShared(account);
     if(NULL == shared)
     {
@@ -585,11 +745,13 @@ uint32_t ec_gen_register_mail_code(const char* account, uint8_t* content, uint32
     if(len <= 0)
     {
         printf("ec_gen_register_mail_code : decrypted failed\n");
+        free(out);
         return 0;
     }
 
     uint32_t code = gen_random_code();
     UserManager::Instance()->PushUserMailMap(code, (const char*)out);
+    free(out);
     return code;
 }
 
@@ -597,6 +759,7 @@ sgx_status_t ec_register_mail(const char* account,
         uint8_t* code_cipher, uint32_t cipher_code_len,
         uint8_t* sealedStr, int sealedSize)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
     const char* shared = UserManager::Instance()->GetShared(account);
 
     if(NULL == shared)
@@ -613,6 +776,7 @@ sgx_status_t ec_register_mail(const char* account,
             out, &outhowmany);
 
     int code = atoi((char*)out);
+    free(out);
     if(UserManager::Instance()->EmailIndexExisted(code))
     {
         const char* email = UserManager::Instance()->GetEmail(code);
@@ -623,6 +787,8 @@ sgx_status_t ec_register_mail(const char* account,
         uint32_t sealed_size = 0;
         sgx_sealed_data_t* sealed_data = seal_data(reinterpret_cast<uint8_t*>(const_cast<char*>(email)), strlen(email), &sealed_size);
         memcpy(sealedStr, sealed_data, sealed_size);
+
+        free(sealed_data);
     }
     else{
         printf("ec_register_mail failed : code not exist\n");
@@ -636,12 +802,78 @@ sgx_status_t ec_register_password(const char* account,
         uint8_t* code_cipher, uint32_t cipher_code_len,
         uint8_t* sealedStr, int sealedSize)
 {
+    auto lock = KSSpinLock(&ks_op_spin_lock);
+    const char* shared = UserManager::Instance()->GetShared(account);
+
+    if(NULL == shared)
+    {
+        printf("ec_register_password failed : account not exist\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    int outLen = (cipher_code_len/16+1)*16;
+    int outhowmany = 0;
+    uint8_t* out = (uint8_t*)malloc(outLen);
+    aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+            code_cipher, cipher_code_len,
+            out, &outhowmany);
+
+    uint32_t sealed_size = 0;
+    sgx_sealed_data_t* sealed_data = seal_data(out, outhowmany, &sealed_size);
+    memcpy(sealedStr, sealed_data, sealed_size);
+
+    free(out);
+    free(sealed_data);
+
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_register_gauth(const char* account,
-        uint8_t* code_cipher, uint32_t cipher_code_len,
-        uint8_t* sealedStr, int sealedSize)
+uint32_t ec_register_gauth(const char* account, uint8_t* code_cipher, uint8_t* sealedStr)
 {
-    return static_cast<sgx_status_t>(0);
+    auto lock = KSSpinLock(&ks_op_spin_lock);
+
+    const char* shared = UserManager::Instance()->GetShared(account);
+
+    if(NULL == shared)
+    {
+        printf("ec_register_gauth failed : account not exist\n");
+        return 0;
+    }
+
+
+    uint8_t buf[SECRET_BITS / 8 + MAX_SCRATCHCODES * BYTES_PER_SCRATCHCODE];
+    static const char hotp[] = "\" HOTP_COUNTER 1\n";
+    static const char totp[] = "\" TOTP_AUTH\n";
+    static const char disallow[] = "\" DISALLOW_REUSE\n";
+    static const char step[] = "\" STEP_SIZE 30\n";
+    static const char window[] = "\" WINDOW_SIZE 17\n";
+    static const char ratelimit[] = "\" RATE_LIMIT 3 30\n";
+    char s[(SECRET_BITS + BITS_PER_BASE32_CHAR - 1) / BITS_PER_BASE32_CHAR +
+        1 /* newline */ +
+        sizeof(hotp) + // hotp and totp are mutually exclusive.
+        sizeof(disallow) +
+        sizeof(step) +
+        sizeof(window) +
+        sizeof(ratelimit) + 5 + // NN MMM (total of five digits)
+        SCRATCHCODE_LENGTH * (MAX_SCRATCHCODES + 1 /* newline */) +
+        1 /* NUL termination character */];
+    sgx_read_rand(buf, sizeof(buf));
+    base32_encode(buf, SECRET_BITS / 8, (uint8_t *)s, sizeof(s));
+
+    int outLen = (sizeof(s)/16+1)*16;
+    int len = 0;
+    uint8_t* out = (uint8_t*)malloc(outLen);
+    aes_gcm_encrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
+            (const unsigned char*)s, sizeof(s),
+            out, &len);
+    memcpy(code_cipher, out, len);
+
+    uint32_t sealed_size = 0;
+    sgx_sealed_data_t* sealed_data = seal_data((uint8_t*)s, sizeof(s), &sealed_size);
+    memcpy(sealedStr, sealed_data, sealed_size);
+
+    free(out);
+    free(sealed_data);
+
+    return sealed_size;
 }

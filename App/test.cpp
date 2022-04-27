@@ -131,8 +131,7 @@ uint8_t* test_seal_and_save_data(sgx_enclave_id_t eid_t, uint32_t* sz)
     *sz = sealedSize;
     printf("calc sealed size %d\n", sealedSize);
     uint8_t * str = (uint8_t*)malloc(sealedSize);
-    ret = ec_ks_seal(eid_t, &ret_val,(const char*)array, sizeof(array),
-                                str, sealedSize);
+    // ret = ec_ks_seal(eid_t, &ret_val,(const char*)array, sizeof(array), str, sealedSize);
     if(ret != SGX_SUCCESS)
     {
         ret_error_support(ret);
