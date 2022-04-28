@@ -35,7 +35,6 @@ std::map<std::string, int> secretMap;
 EC_KEY *ec_pkey = NULL;
 EC_GROUP *group = NULL;
 char *ec_pkey_hex = NULL;
-char shared[256];
 
 uint32_t gen_random_code()
 {
@@ -702,7 +701,7 @@ uint32_t ec_auth(const char* account, const char* userpkeyHex)
     auto lock = KSSpinLock(&ks_op_spin_lock);
     if(!UserManager::Instance()->ExchangeUserExisted(userpkeyHex))
     {
-        printf("ec_auth failed : userpkeyhex not found\n");
+        printf("ec_auth failed : userpkeyhex not found %s\n", userpkeyHex);
         return 0;
     }
 
