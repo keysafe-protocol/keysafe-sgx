@@ -16,6 +16,8 @@ class User{
         void Exchange(const char* userpkeyHex, const char* sharedStr);
 
         void SetAccount(const char* account){ m_account.append(account); }
+        std::string& GetAccount(){return m_account;}
+        std::string& GetShared(){return m_shared;}
 
         void SetEmail(const char* email){
             m_email.clear();

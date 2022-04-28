@@ -701,7 +701,10 @@ uint32_t ec_auth(const char* account, const char* userpkeyHex)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
     if(!UserManager::Instance()->ExchangeUserExisted(userpkeyHex))
+    {
+        printf("ec_auth failed : userpkeyhex not found\n");
         return 0;
+    }
 
     if(UserManager::Instance()->PushAvaliableUser(account, userpkeyHex))
     {

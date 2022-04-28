@@ -68,9 +68,9 @@ const char* UserManager::GetShared(const char* account)
         return NULL;
 
     std::string hex = it->second;
-    std::map<std::string, std::string>::iterator ait = m_userAvaliableMap.find(hex);
-    std::string shared = ait->second;
-    return shared.c_str();
+    std::map<std::string, User>::iterator ait = m_userExchangedMap.find(hex);
+    User user = ait->second;
+    return user.GetShared().c_str();
 }
 
 void UserManager::RemoveExchangeUser(const char* userpkeyhex)
