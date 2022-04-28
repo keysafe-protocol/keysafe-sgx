@@ -314,6 +314,7 @@ sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr
         const char* shared = UserManager::Instance()->GetShared(userpkeyHex);
         int len = strlen(shared);
         memcpy(sharedStr, shared, len);
+        printf("shared key %s\n", shared);
         return static_cast<sgx_status_t>(0);
     }
     else{
@@ -332,6 +333,7 @@ sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr
         user.Exchange(userpkeyHex, shared);
         UserManager::Instance()->PushExchangeUser(userpkeyHex, user);
 
+        printf("shared key %s\n", shared);
         memcpy(sharedStr, shared, len);
 
     }
