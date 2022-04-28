@@ -31,11 +31,11 @@ std::string base64PublicKey;
 int nPublicLength = 0;
 std::map<int, std::string> recoveryMap;
 std::map<std::string, int> secretMap;
-char shared[256];
 
 EC_KEY *ec_pkey = NULL;
 EC_GROUP *group = NULL;
 char *ec_pkey_hex = NULL;
+char shared[256];
 
 uint32_t gen_random_code()
 {
@@ -89,6 +89,7 @@ uint8_t* unseal_data(uint8_t* sealed_data, uint32_t* decrypt_data_len)
     return decrypt_data;
 }
 
+/*
 sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_secret)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
@@ -100,14 +101,14 @@ sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_se
     static const char window[] = "\" WINDOW_SIZE 17\n";
     static const char ratelimit[] = "\" RATE_LIMIT 3 30\n";
     char s[(SECRET_BITS + BITS_PER_BASE32_CHAR - 1) / BITS_PER_BASE32_CHAR +
-        1 /* newline */ +
+        1  +
         sizeof(hotp) + // hotp and totp are mutually exclusive.
         sizeof(disallow) +
         sizeof(step) +
         sizeof(window) +
         sizeof(ratelimit) + 5 + // NN MMM (total of five digits)
-        SCRATCHCODE_LENGTH * (MAX_SCRATCHCODES + 1 /* newline */) +
-        1 /* NUL termination character */];
+        SCRATCHCODE_LENGTH * (MAX_SCRATCHCODES + 1 ) +
+        1 ];
     sgx_read_rand(buf, sizeof(buf));
     base32_encode(buf, SECRET_BITS / 8, (uint8_t *)s, sizeof(s));
 
@@ -130,7 +131,9 @@ sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_se
     free(out);
     return static_cast<sgx_status_t>(0);
 }
+*/
 
+/*
 uint32_t ec_check_code(uint8_t *sealed_secret, int len,
         uint64_t tm, uint8_t* encrypted_code, int code_len,
         uint8_t* sealed_data, int len2, char* chip)
@@ -180,6 +183,7 @@ uint32_t ec_check_code(uint8_t *sealed_secret, int len,
     }
     return 0;
 }
+*/
 
 void ecc_key_gen()
 {
@@ -302,6 +306,15 @@ sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr
     auto lock = KSSpinLock(&ks_op_spin_lock);
     if(UserManager::Instance()->ExchangeUserExisted(userpkeyHex))
     {
+        const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
+        ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
+        printf("enclave hex");
+        printf("%s\n", ec_pkey_hex);
+        memcpy(enclaveHex, ec_pkey_hex, strlen(ec_pkey_hex));
+
+        const char* shared = UserManager::Instance()->GetShared(userpkeyHex);
+        int len = strlen(shared);
+        memcpy(sharedStr, shared, len);
         return static_cast<sgx_status_t>(0);
     }
     else{
@@ -309,6 +322,8 @@ sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr
         memset(shared, 0, sizeof(shared));
         const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
         ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
+        printf("enclave hex");
+        printf("%s\n", ec_pkey_hex);
         memcpy(enclaveHex, ec_pkey_hex, strlen(ec_pkey_hex));
 
         EC_POINT *uPoint = EC_POINT_hex2point(group, userpkeyHex, NULL, NULL);
@@ -321,6 +336,7 @@ sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr
         memcpy(sharedStr, shared, len);
 
     }
+
 
     return static_cast<sgx_status_t>(0);
 }
@@ -624,6 +640,7 @@ uint32_t ec_ks_unseal(const char *pkey, uint8_t *str, uint32_t data_size)
     return retVal;
 }
 
+/*
 uint32_t ec_prove_me(uint8_t *key_pt, int klen, char * unsealStr)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
@@ -668,6 +685,7 @@ uint32_t ec_prove_me(uint8_t *key_pt, int klen, char * unsealStr)
     }
     return 0;
 }
+*/
 
 sgx_status_t ec_rsa_decrypt(const char *str)
 {
