@@ -726,6 +726,7 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
         return SGX_ERROR_UNEXPECTED;
     }
 
+    printf("ec_auth shared %s\n", shared);
     int outLen = (cipher_len/16+1)*16;
     int outhowmany = 0;
     uint8_t* outbuf = (uint8_t*)malloc(outLen);
