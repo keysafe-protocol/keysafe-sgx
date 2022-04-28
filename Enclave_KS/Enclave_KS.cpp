@@ -314,7 +314,8 @@ sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr
         const char* shared = UserManager::Instance()->GetShared(userpkeyHex);
         int len = strlen(shared);
         memcpy(sharedStr, shared, len);
-        printf("shared key %s\n", shared);
+        printf("shared key");
+        printf("%s\n", shared);
         return static_cast<sgx_status_t>(0);
     }
     else{
@@ -333,7 +334,9 @@ sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr
         user.Exchange(userpkeyHex, shared);
         UserManager::Instance()->PushExchangeUser(userpkeyHex, user);
 
-        printf("shared key %s\n", shared);
+        printf("shared key");
+        printf("%s\n", shared);
+
         memcpy(sharedStr, shared, len);
 
     }
@@ -728,7 +731,8 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
         return SGX_ERROR_UNEXPECTED;
     }
 
-    printf("ec_auth shared %s\n", shared);
+    printf("ec_auth shared");
+    printf("%s\n", shared);
     int outLen = (cipher_len/16+1)*16;
     int outhowmany = 0;
     uint8_t* outbuf = (uint8_t*)malloc(outLen);
