@@ -723,6 +723,7 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
     const char* shared = UserManager::Instance()->GetShared(account);
     if(NULL == shared)
     {
+        printf("ec_auth_confirm : failed, shared not existed\n");
         return SGX_ERROR_UNEXPECTED;
     }
 
@@ -733,12 +734,14 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
                     code_cipher, cipher_len,
                     outbuf, &outhowmany);
     int code = atoi((char*)outbuf);
+    printf("ec_auth_confirm : code %d\n", code);
     free(outbuf);
 
     if(!UserManager::Instance()->UserIndexExisted(code))
     {
         UserManager::Instance()->RemoveAvaliableUser(account);
         UserManager::Instance()->RemoveUserIndex(code);
+        printf("ec_auth_confirm : failed, shared not existed\n");
         return SGX_ERROR_UNEXPECTED;
     }
     UserManager::Instance()->RemoveUserIndex(code);
