@@ -303,22 +303,20 @@ sgx_status_t ec_rsa_encrypt(const char *from)
 sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
+    //userpkeyHex = "04f8d0f4afa441be90c4e8a4a347345b9e66d074ab6030e431b3882742cbbeb65d32d8939fa175ba1aed5a264e3cb2133d844f7608eaa7a638fc7b8da16ef8a0fb";
     if(UserManager::Instance()->ExchangeUserExisted(userpkeyHex))
     {
+        printf("exchange user existed\n");
         const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
         ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
         printf("enclave hex");
         printf("%s\n", ec_pkey_hex);
         memcpy(enclaveHex, ec_pkey_hex, strlen(ec_pkey_hex));
 
-        const char* shared = UserManager::Instance()->GetShared(userpkeyHex);
-        int len = strlen(shared);
-        memcpy(sharedStr, shared, len);
-        printf("shared key");
-        printf("%s\n", shared);
         return static_cast<sgx_status_t>(0);
     }
     else{
+        printf("exchange user is new\n");
         char shared[256];
         memset(shared, 0, sizeof(shared));
         const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
@@ -340,7 +338,6 @@ sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr
         memcpy(sharedStr, shared, len);
 
     }
-
 
     return static_cast<sgx_status_t>(0);
 }
@@ -706,7 +703,8 @@ uint32_t ec_auth(const char* account, const char* userpkeyHex)
     auto lock = KSSpinLock(&ks_op_spin_lock);
     if(!UserManager::Instance()->ExchangeUserExisted(userpkeyHex))
     {
-        printf("ec_auth failed : userpkeyhex not found %s\n", userpkeyHex);
+        printf("ec_auth failed : userpkeyhex not found");
+        printf("%s\n", userpkeyHex);
         return 0;
     }
 
@@ -731,15 +729,17 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
         return SGX_ERROR_UNEXPECTED;
     }
 
-    printf("ec_auth shared");
-    printf("%s\n", shared);
+    printf("code_cipher");
+    printf("%s\n", (char*)code_cipher);
 
     int outLen = (cipher_len/16+1)*16;
     int outhowmany = 0;
-    uint8_t* outbuf = (uint8_t*)malloc(outLen);
+    unsigned char* outbuf = (unsigned char*)malloc(outLen);
     aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
-                    code_cipher, cipher_len,
+                    (unsigned char*)code_cipher, cipher_len,
                     outbuf, &outhowmany);
+    printf("outbuf");
+    printf("%s\n", outbuf);
     int code = atoi((char*)outbuf);
     printf("ec_auth_confirm : code %d\n", code);
     free(outbuf);

@@ -1,11 +1,13 @@
 #include "UserManager.h"
+#include "Enclave_KS_t.h"
+#include "ks_enclave_util.h"
 
 UserManager* UserManager::m_instance = NULL;
 
 void UserManager::PushExchangeUser(const char* userpkeyhex, User user)
 {
     std::string hex;
-    hex.append(userpkeyhex);
+    hex.append(userpkeyhex, strlen(userpkeyhex));
     m_userExchangedMap[hex] = user;
 }
 
@@ -24,6 +26,10 @@ bool UserManager::PushAvaliableUser(const char* account, const char* userpkeyhex
 
     User user = it->second;
     user.SetAccount(account);
+    printf("user account");
+    printf("%s\n",user.GetAccount().c_str());
+    printf("user shared");
+    printf("%s\n",user.GetShared().c_str());
 
     m_userAvaliableMap[strAccount] = hex;
     return true;
@@ -60,6 +66,9 @@ bool UserManager::UserIndexExisted(int code)
 
 const char* UserManager::GetShared(const char* account)
 {
+    printf("GetShared account");
+    printf("%s\n", account);
+
     std::string k;
     k.append(account);
 
@@ -68,8 +77,18 @@ const char* UserManager::GetShared(const char* account)
         return NULL;
 
     std::string hex = it->second;
+    printf("GetShared hex ");
+    printf("%s\n", hex.c_str());
     std::map<std::string, User>::iterator ait = m_userExchangedMap.find(hex);
+    if(ait == m_userExchangedMap.end())
+        return "";
+
     User user = ait->second;
+    printf("user account");
+    printf("%s\n",user.GetAccount().c_str());
+    printf("user shared");
+    printf("%s\n",user.GetShared().c_str());
+
     return user.GetShared().c_str();
 }
 
