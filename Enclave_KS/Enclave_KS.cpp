@@ -748,7 +748,7 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
     {
         UserManager::Instance()->RemoveAvaliableUser(account);
         UserManager::Instance()->RemoveUserIndex(code);
-        printf("ec_auth_confirm : failed, shared not existed\n");
+        printf("ec_auth_confirm : failed, code not existed\n");
         return SGX_ERROR_UNEXPECTED;
     }
     UserManager::Instance()->RemoveUserIndex(code);
