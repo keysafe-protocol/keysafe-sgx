@@ -930,6 +930,7 @@ sgx_status_t ec_verify_gauth_code(int gauth_code, char* secret, uint64_t tm)
 
     const unsigned long t = tm / 30;
     const int correct_code = generateCode((char *)secret, t);
+    printf("%d %d\n", gauth_code, correct_code);
     if(gauth_code != correct_code)
     {
         printf("code is not equal\n");
