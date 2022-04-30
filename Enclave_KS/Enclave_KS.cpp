@@ -88,7 +88,6 @@ uint8_t* unseal_data(uint8_t* sealed_data, uint32_t* decrypt_data_len)
     return decrypt_data;
 }
 
-/*
 sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_secret)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
@@ -119,6 +118,7 @@ sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_se
     memcpy(secret, sealed_data, sealed_size);
     free(sealed_data);
 
+    /*
     int outLen = (sizeof(s)/16+1)*16;
     unsigned char* out = (unsigned char*)malloc(outLen);
     int count = 0;
@@ -126,11 +126,10 @@ sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_se
             IV, sizeof(IV),
             (const unsigned char*)s, sizeof(s),
             out, &count);
-    memcpy(encrypted_secret, out, count);
-    free(out);
+    */
+    memcpy(encrypted_secret, s, sizeof(s));
     return static_cast<sgx_status_t>(0);
 }
-*/
 
 /*
 uint32_t ec_check_code(uint8_t *sealed_secret, int len,
@@ -907,4 +906,35 @@ uint32_t ec_register_gauth(const char* account, uint8_t* code_cipher, uint8_t* s
     free(sealed_data);
 
     return sealed_size;
+}
+
+sgx_status_t ec_verify_gauth_code(int gauth_code, char* secret, uint64_t tm)
+{
+    if(gauth_code <= 0)
+    {
+        printf("gauth_code can not be zero\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    if(strlen(secret)<=0)
+    {
+        printf("secret is not avaliable\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    if(tm<=0)
+    {
+        printf("tm is not avaliable %ld\n", tm);
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    const unsigned long t = tm / 30;
+    const int correct_code = generateCode((char *)secret, t);
+    if(gauth_code != correct_code)
+    {
+        printf("code is not equal\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    return static_cast<sgx_status_t>(0);
 }
