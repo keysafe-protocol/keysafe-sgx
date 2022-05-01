@@ -909,7 +909,7 @@ uint32_t ec_register_gauth(const char* account, uint8_t* code_cipher, uint8_t* s
     return sealed_size;
 }
 
-sgx_status_t ec_verify_gauth_code(int gauth_code, char* secret, int secret_len, uint64_t tm)
+sgx_status_t ec_verify_gauth_code(int gauth_code, char* secret, uint64_t tm)
 {
     if(gauth_code <= 0)
     {
@@ -929,11 +929,9 @@ sgx_status_t ec_verify_gauth_code(int gauth_code, char* secret, int secret_len, 
         return SGX_ERROR_UNEXPECTED;
     }
 
-    uint32_t unseal_size = 0;
-    uint8_t* data = unseal_data((uint8_t*)secret, &unseal_size);
 
     const unsigned long t = tm / 30;
-    const int correct_code = generateCode((char *)data, t);
+    const int correct_code = generateCode(secret, t);
     printf("%d %d\n", gauth_code, correct_code);
     if(gauth_code != correct_code)
     {
