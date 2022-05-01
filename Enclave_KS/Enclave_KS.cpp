@@ -928,8 +928,11 @@ sgx_status_t ec_verify_gauth_code(int gauth_code, char* secret, uint64_t tm)
         return SGX_ERROR_UNEXPECTED;
     }
 
+    uint32_t unseal_size = 0;
+    uint8_t* data = unseal_data((uint8_t*)secret, &unseal_size);
+
     const unsigned long t = tm / 30;
-    const int correct_code = generateCode((char *)secret, t);
+    const int correct_code = generateCode((char *)data, t);
     printf("%d %d\n", gauth_code, correct_code);
     if(gauth_code != correct_code)
     {
