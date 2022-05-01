@@ -82,6 +82,7 @@ uint8_t* unseal_data(uint8_t* sealed_data, uint32_t* decrypt_data_len)
             decrypt_data, decrypt_data_len);
     if(ret != SGX_SUCCESS)
     {
+        printf("unseal failed\n");
         return NULL;
     }
 
@@ -908,7 +909,7 @@ uint32_t ec_register_gauth(const char* account, uint8_t* code_cipher, uint8_t* s
     return sealed_size;
 }
 
-sgx_status_t ec_verify_gauth_code(int gauth_code, char* secret, uint64_t tm)
+sgx_status_t ec_verify_gauth_code(int gauth_code, char* secret, int secret_len, uint64_t tm)
 {
     if(gauth_code <= 0)
     {

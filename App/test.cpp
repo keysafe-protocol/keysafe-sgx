@@ -232,7 +232,7 @@ void test_gen_gauth_secret(sgx_enclave_id_t eid_t)
     std::time_t t = std::time(0);
     unsigned long tm = (unsigned long)(t /30);
     int code = generateCode((const char*)encrypted_secret, tm);
-    ret = ec_verify_gauth_code(eid_t, &ret_val, code, (char*)encrypted_secret, t);
+    ret = ec_verify_gauth_code(eid_t, &ret_val, code, (char*)secret, sealed_size, t);
      free(secret);
      free(encrypted_secret);
 
