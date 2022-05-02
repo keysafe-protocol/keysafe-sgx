@@ -1,10 +1,12 @@
 #include <string>
 #include <vector>
+#include <ctime>
 
 #include "test.h"
 #include "global.h"
 #include "Enclave_KS_u.h"
 #include "ErrorSupport.h"
+#include "gauth.h"
 
 
 char* test_out_public_key(sgx_enclave_id_t eid_t, char* userpkHex)
@@ -131,8 +133,7 @@ uint8_t* test_seal_and_save_data(sgx_enclave_id_t eid_t, uint32_t* sz)
     *sz = sealedSize;
     printf("calc sealed size %d\n", sealedSize);
     uint8_t * str = (uint8_t*)malloc(sealedSize);
-    ret = ec_ks_seal(eid_t, &ret_val,(const char*)array, sizeof(array),
-                                str, sealedSize);
+    // ret = ec_ks_seal(eid_t, &ret_val,(const char*)array, sizeof(array), str, sealedSize);
     if(ret != SGX_SUCCESS)
     {
         ret_error_support(ret);
@@ -167,7 +168,7 @@ void test_read_unseal_data(sgx_enclave_id_t eid_unseal, uint8_t* sealedBlob, uin
     }
     char* unsealStr = (char*)malloc(8192);
     uint32_t len = 0;
-    ret = ec_prove_me(eid_unseal, &len, (uint8_t*)&randVal, 10, unsealStr);
+    //ret = ec_prove_me(eid_unseal, &len, (uint8_t*)&randVal, 10, unsealStr);
     if (ret != SGX_SUCCESS)
     {
         ret_error_support(ret);
@@ -211,11 +212,34 @@ void test_gen_gauth_secret(sgx_enclave_id_t eid_t)
     uint8_t* secret = (uint8_t*)malloc(sealed_size);
     uint8_t* encrypted_secret = (uint8_t*)malloc(256);
     ret = ec_gen_gauth_secret(eid_t, &ret_val, secret, (int)sealed_size, encrypted_secret);
-    free(secret);
+    printf("%s\n", encrypted_secret);
     if(ret != SGX_SUCCESS)
     {
+        free(secret);
+        free(encrypted_secret);
         ret_error_support(ret);
         return;
+    }
+    else if(ret_val != SGX_SUCCESS)
+    {
+        free(secret);
+        free(encrypted_secret);
+
+        ret_error_support(ret_val);
+        return;
+    }
+
+    std::time_t t = std::time(0);
+    unsigned long tm = (unsigned long)(t /30);
+    int code = generateCode((const char*)encrypted_secret, tm);
+    ret = ec_verify_gauth_code(eid_t, &ret_val, code, (char*)encrypted_secret,t);
+     free(secret);
+     free(encrypted_secret);
+
+     if (ret != SGX_SUCCESS)
+     {
+         ret_error_support(ret);
+         return;
     }
     else if(ret_val != SGX_SUCCESS)
     {

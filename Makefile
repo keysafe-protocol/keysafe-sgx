@@ -55,7 +55,8 @@ else
 endif
 
 App_Cpp_Files := $(wildcard App/*.cpp)
-App_Include_Paths := -IApp -IApp/Global -I$(SGX_SDK)/include -I$(SGXSSL_INCLUDE_PATH)/openssl 
+App_C_Files := $(wildcard App/google-authenticator/*.c)
+App_Include_Paths := -IApp -IApp/Global -IApp/google-authenticator -I$(SGX_SDK)/include -I$(SGXSSL_INCLUDE_PATH)/openssl 
 
 App_Compile_CFlags := -fPIC -Wno-attributes $(App_Include_Paths)
 # Three configuration modes - Debug, prerelease, release
@@ -77,7 +78,7 @@ Gen_Untrusted_Source_KS := App/Enclave_KS_u.c
 Gen_Untrusted_Object_KS := App/Enclave_KS_u.o
 
 
-App_Objects := $(Gen_Untrusted_Object_KS) $(App_Cpp_Files:.cpp=.o)
+App_Objects := $(Gen_Untrusted_Object_KS) $(App_Cpp_Files:.cpp=.o) $(App_C_Files:.c=.o)
 #App_Objects := $(App_Cpp_Files:.cpp=.o)
 
 App_Name := app

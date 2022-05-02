@@ -14,30 +14,37 @@ enclave {
         public sgx_status_t ec_aes_gcm_encrypt([in,string]char* str);
         public sgx_status_t ec_aes_gcm_decrypt([in,string]char* shared, [in, string]char* ciphertext);
 
+        //fix encrypted_secret to unencrypted
         public sgx_status_t ec_gen_gauth_secret([out, size=len]uint8_t* sealedSecret, int len, [out, size=256]uint8_t* encrypted_secret);
 
-        public uint32_t ec_check_code([in, size=len]uint8_t* sealed_secret, int len, 
-                                                                uint64_t tm, 
-                                                                [in ,size=code_len]uint8_t* encrypted_code, int code_len, 
-                                                                [in, size=len2]uint8_t* sealed_data, int len2, 
-                                                                [out, size=8192]char* chip);
+        //public uint32_t ec_check_code([in, size=len]uint8_t* sealed_secret, int len, uint64_t tm, [in ,size=code_len]uint8_t* encrypted_code, int code_len, [in, size=len2]uint8_t* sealed_data, int len2, [out, size=8192]char* chip);
 
         public uint32_t ec_calc_sealed_size(uint32_t len);
 
+        //to remove sharedStr parameter
         public sgx_status_t ec_ks_exchange([in, string]char* userpkeyHex, [out,size=256]char* enclaveHex, [out, size=256]char* sharedStr);
 
-        public sgx_status_t ec_ks_seal([in, size=len]const char *str, int len, 
-                                                                [out, size=sealedSize]uint8_t* sealedStr, int sealedSize);
+        public sgx_status_t ec_ks_seal([in, string]const char* account,
+                [in, size=len]const char *str, int len, 
+                [out, size=sealedSize]uint8_t* sealedStr, int sealedSize);
 
         public uint32_t ec_ks_unseal2([in,string] const char* account, 
-                                                                [in,size=cipher_code_len]uint8_t* code_cipher, uint32_t cipher_code_len, 
-                                                                [in, size=condition_size] uint8_t* condition, uint32_t condition_size, 
-                                                                [in, size=sealed_data_size]uint8_t* sealed_data, uint32_t sealed_data_size, 
-                                                                [out, size=encrypted_unseal_data_size]uint8_t* encrypted_unseal_data, uint32_t encrypted_unseal_data_size);
+                [in,size=cipher_code_len]uint8_t* code_cipher, uint32_t cipher_code_len, 
+                [in, string] const char* condition,  
+                [in, size=condition_value_size]uint8_t* condition_value, uint32_t condition_value_size,
+                [in, size=sealed_data_size]uint8_t* sealed_data, uint32_t sealed_data_size, 
+                [out, size = 8192]uint8_t* encrypted_unseal_data);
+
+        public uint32_t ec_ks_unseal_gauth([in,string] const char* account, 
+                [in,size=cipher_code_len]uint8_t* code_cipher, uint32_t cipher_code_len, 
+                uint64_t tm,
+                [in, size=condition_size] uint8_t* condition, uint32_t condition_size, 
+                [in, size=sealed_data_size]uint8_t* sealed_data, uint32_t sealed_data_size, 
+                [out,size=8192]uint8_t* encrypted_unseal_data);
 
         public uint32_t ec_ks_unseal([in, string]const char* pkey, [in, size=data_size] uint8_t* str, uint32_t data_size);
 
-        public uint32_t ec_prove_me([in, size=klen]uint8_t* key_pt, int klen, [out, size=8192] char* unsealStr);
+        //public uint32_t ec_prove_me([in, size=klen]uint8_t* key_pt, int klen, [out, size=8192] char* unsealStr);
 
         public uint32_t ec_auth([in, string]const char* account, [in, string] const char* userpkeyHex);
 
@@ -46,30 +53,33 @@ enclave {
         public uint32_t ec_gen_register_mail_code([in, string]const char* account, [in, size=content_len] uint8_t* content, uint32_t content_len);
 
         public sgx_status_t ec_register_mail([in, string]const char* account, 
-                                                                        [in, size=cipher_code_len]uint8_t* code_cipher, uint32_t cipher_code_len, 
-                                                                        [out, size=sealedSize]uint8_t* sealedStr, int sealedSize);
+                [in, size=cipher_code_len]uint8_t* code_cipher, uint32_t cipher_code_len, 
+                [out, size=sealedSize]uint8_t* sealedStr, int sealedSize);
 
 
         public sgx_status_t ec_register_password([in, string]const char* account, 
-                                                                                    [in, size=cipher_code_len]uint8_t* code_cipher, uint32_t cipher_code_len, 
-                                                                                    [out, size=sealedSize]uint8_t* sealedStr, int sealedSize);
+                [in, size=cipher_code_len]uint8_t* code_cipher, uint32_t cipher_code_len, 
+                [out, size=sealedSize]uint8_t* sealedStr, int sealedSize);
 
 
-        public sgx_status_t ec_register_gauth([in, string]const char* account, 
-                                                                            [out, size=cipher_secret_len]uint8_t* secret_cipher, uint32_t cipher_secret_len, 
-                                                                            [out, size=sealedSize]uint8_t* sealedStr, int sealedSize);
-       };
+        public uint32_t ec_register_gauth([in, string]const char* account, 
+                [out, size=256]uint8_t* secret_cipher, 
+                [out, size=1024]uint8_t* sealedStr);
+
+        public sgx_status_t ec_verify_gauth_code(int gauth_code, [in, string]char* secret, uint64_t tm);
+
+    };
 
     untrusted {
         /* define OCALLs here. */
         void oc_print([in, string] const char *str);
         /*
-        void oc_deliver_public_key([in, string] const char *str);
-        void oc_encrypted_string([in,string]const char *str);
+           void oc_deliver_public_key([in, string] const char *str);
+           void oc_encrypted_string([in,string]const char *str);
 
-        void oc_deliver_sealed_string([in,string]const char* str);
-        void oc_deliver_unseal_string([in, string]const char* str);
-        */
+           void oc_deliver_sealed_string([in,string]const char* str);
+           void oc_deliver_unseal_string([in, string]const char* str);
+         */
     };
 };
 
