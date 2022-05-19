@@ -309,8 +309,6 @@ sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr
         printf("exchange user existed\n");
         const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
         ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
-        printf("enclave hex");
-        printf("%s\n", ec_pkey_hex);
         memcpy(enclaveHex, ec_pkey_hex, strlen(ec_pkey_hex));
 
         return static_cast<sgx_status_t>(0);
@@ -321,8 +319,6 @@ sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr
         memset(shared, 0, sizeof(shared));
         const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
         ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
-        printf("enclave hex");
-        printf("%s\n", ec_pkey_hex);
         memcpy(enclaveHex, ec_pkey_hex, strlen(ec_pkey_hex));
 
         EC_POINT *uPoint = EC_POINT_hex2point(group, userpkeyHex, NULL, NULL);
@@ -332,8 +328,7 @@ sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr
         user.Exchange(userpkeyHex, shared);
         UserManager::Instance()->PushExchangeUser(userpkeyHex, user);
 
-        printf("shared key");
-        printf("%s\n", shared);
+        printf("shared key %s\n", shared);
 
         memcpy(sharedStr, shared, len);
 
@@ -722,6 +717,7 @@ uint32_t ec_auth(const char* account, const char* userpkeyHex)
 sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t cipher_len)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
+
     const char* shared = UserManager::Instance()->GetShared(account);
     if(NULL == shared)
     {
@@ -729,18 +725,21 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
         return SGX_ERROR_UNEXPECTED;
     }
 
-    printf("code_cipher");
-    printf("%s\n", (char*)code_cipher);
-
     int outLen = (cipher_len/16+1)*16;
     int outhowmany = 0;
-    unsigned char* outbuf = (unsigned char*)malloc(outLen);
+    uint8_t* outbuf = (uint8_t*)malloc(outLen);
     aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
-                    (unsigned char*)code_cipher, cipher_len,
+                    (const unsigned char*)code_cipher, cipher_len,
                     outbuf, &outhowmany);
-    printf("outbuf");
-    printf("%s\n", outbuf);
-    int code = atoi((char*)outbuf);
+
+    for(int i = 0;i<outhowmany;i++)
+    {
+        printf("%d ",(int)outbuf[i]);
+    }
+
+    std::string sc(outbuf, outbuf+outhowmany);
+    int code = 0;
+    code = atoi(sc.c_str());
     printf("ec_auth_confirm : code %d\n", code);
     free(outbuf);
 
@@ -749,6 +748,7 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
         UserManager::Instance()->RemoveAvaliableUser(account);
         UserManager::Instance()->RemoveUserIndex(code);
         printf("ec_auth_confirm : failed, code not existed\n");
+
         return SGX_ERROR_UNEXPECTED;
     }
     UserManager::Instance()->RemoveUserIndex(code);

@@ -1,4 +1,6 @@
 #include "KSSgx.h"
+#include "Enclave_KS_u.h"
+#include "ErrorSupport.h"
 
 KSSgx* KSSgx::mInstance = NULL;
 
@@ -19,4 +21,21 @@ bool KSSgx::initialize_enclave(const char *szPath)
         return false;
     }
     return true;
+}
+
+void KSSgx::gen_ecc_key()
+{
+    sgx_status_t ret, ret_val;
+    ret = ec_gen_key(mEid, &ret_val);
+    if(ret != SGX_SUCCESS)
+    {
+        ret_error_support(ret);
+        return;
+    }
+    else if(ret_val != SGX_SUCCESS)
+    {
+        ret_error_support(ret_val);
+        return;
+    }
+
 }

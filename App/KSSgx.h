@@ -17,6 +17,7 @@ class KSSgx
 
         static KSSgx* Instance();
         bool initialize_enclave(const char *szPath);
+        void gen_ecc_key();
 
     private:
         static KSSgx* mInstance;
@@ -40,6 +41,7 @@ class KSSgx
                 mPublicKey.clear();
             mPublicKey.append(str);
         }
+
 };
 
 #endif

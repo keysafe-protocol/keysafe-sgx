@@ -28,7 +28,7 @@ char * Base64Encode(const char * input, int length, bool with_new_line)
     return buff;
 }
 
-char * Base64Decode(char * input, int length, bool with_new_line)
+char * Base64Decode(const char * input, int length, bool with_new_line)
 {
     BIO * b64 = NULL;
     BIO * bmem = NULL;

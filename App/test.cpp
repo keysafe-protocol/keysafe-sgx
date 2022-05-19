@@ -20,7 +20,7 @@ char* test_out_public_key(sgx_enclave_id_t eid_t, char* userpkHex)
     //ret = ec_rand_num(eid_t, &ret_val);
     if(ret != SGX_SUCCESS)
     {
-        ret_error_support(ret);
+
         return NULL;
     }
     else if(ret_val != SGX_SUCCESS)
