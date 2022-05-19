@@ -22,6 +22,7 @@
 #include "test.h"
 #include "oc_funcs.h"
 #include "ErrorSupport.h"
+#include "UUser.h"
 
 
 EC_KEY *ec_pkey = NULL;
@@ -67,7 +68,7 @@ void ecc_key_gen()
         return;
     }
 
-        free(curves);
+    free(curves);
 }
 
 
@@ -115,14 +116,14 @@ int main(int argc, char* argv[])
     auto instance = KSSgx::Instance();
     if(instance->initialize_enclave(ENCLAVE_NAME_KS))
     {
+        /*
         ecc_key_gen();
         const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
-       char* ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
+        char* ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
 
         sgx_enclave_id_t eid_t = instance->getEid();
         test_gen_key(eid_t);
         test_gen_gauth_secret(eid_t);
-        /*
         if(NULL != enclavepkHex)
         {
             EC_POINT *uPoint = EC_POINT_hex2point(group, enclavepkHex, NULL, NULL);
@@ -149,6 +150,10 @@ int main(int argc, char* argv[])
             free(enclavepkHex);
         }
     */
+        instance->gen_ecc_key();
+        auto user = new UUser("childmercy@163.com");
+        user->init();
+        user->auth();
         printf("success\n");
     }
     delete instance;
