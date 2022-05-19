@@ -732,15 +732,9 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
                     (const unsigned char*)code_cipher, cipher_len,
                     outbuf, &outhowmany);
 
-    for(int i = 0;i<outhowmany;i++)
-    {
-        printf("%d ",(int)outbuf[i]);
-    }
-
     std::string sc(outbuf, outbuf+outhowmany);
     int code = 0;
     code = atoi(sc.c_str());
-    printf("ec_auth_confirm : code %d\n", code);
     free(outbuf);
 
     if(!UserManager::Instance()->UserIndexExisted(code))
