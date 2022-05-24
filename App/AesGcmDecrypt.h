@@ -1,5 +1,5 @@
-#ifndef __AES_GCM_ENCRYPT_H
-#define __AES_GCM_ENCRYPT_H
+#ifndef __AES_GCM_DECRYPT_H
+#define __AES_GCM_DECRYPT_H
 
 #include <iostream>
 

@@ -132,58 +132,6 @@ sgx_status_t ec_gen_gauth_secret(uint8_t *secret, int len, uint8_t* encrypted_se
     return static_cast<sgx_status_t>(0);
 }
 
-/*
-uint32_t ec_check_code(uint8_t *sealed_secret, int len,
-        uint64_t tm, uint8_t* encrypted_code, int code_len,
-        uint8_t* sealed_data, int len2, char* chip)
-{
-    auto lock = KSSpinLock(&ks_op_spin_lock);
-
-    uint32_t data_len;
-    uint8_t* out = unseal_data(sealed_secret, &data_len);
-    if(out == NULL)
-    {
-        return SGX_ERROR_UNEXPECTED;
-    }
-
-    int outLen = (code_len/16+1)*16;
-    int count = 0;
-    unsigned char*  decrypted_code = (unsigned char*)malloc(outLen);
-    aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
-            encrypted_code, code_len,
-            decrypted_code, &count);
-    printf("decrypted code\n");
-    printf("%s\n", decrypted_code);
-
-    int code = atoi((const char*)decrypted_code);
-    const unsigned long t = tm / 30;
-    const int correct_code = generateCode((char *)out, t);
-    free(out);
-    if (code != correct_code)
-    {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    if(code == correct_code)
-    {
-        out = unseal_data(sealed_data, &data_len);
-        int cipherlen = (data_len/16+1)*16;
-        int count = 0;
-        unsigned char* cipher = (unsigned char*)malloc(cipherlen + 1);
-        aes_gcm_encrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
-                out, data_len,
-                cipher, &count);
-
-
-        memcpy(chip, cipher, count);
-        free(out);
-        free(cipher);
-        return count;
-    }
-    return 0;
-}
-*/
-
 void ecc_key_gen()
 {
     ec_pkey = EC_KEY_new();
@@ -289,21 +237,10 @@ sgx_status_t ec_deliver_public_key()
     return static_cast<sgx_status_t>(0);
 }
 
-sgx_status_t ec_rsa_encrypt(const char *from)
-{
-    auto lock = KSSpinLock(&ks_op_spin_lock);
-    char *out = (char *)rsa_encrypt(evp_pkey, from);
-    std::string outStr;
-    outStr.append(out);
-    free(out);
-    // oc_encrypted_string(outStr.c_str());
-    return static_cast<sgx_status_t>(0);
-}
 
 sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr)
 {
     auto lock = KSSpinLock(&ks_op_spin_lock);
-    //userpkeyHex = "04f8d0f4afa441be90c4e8a4a347345b9e66d074ab6030e431b3882742cbbeb65d32d8939fa175ba1aed5a264e3cb2133d844f7608eaa7a638fc7b8da16ef8a0fb";
     if(UserManager::Instance()->ExchangeUserExisted(userpkeyHex))
     {
         printf("exchange user existed\n");
@@ -423,104 +360,6 @@ sgx_status_t ec_ks_seal(const char* account, const char *str, int len, uint8_t *
     return err;
 }
 
-uint32_t ec_ks_unseal2(const char* account,
-        uint8_t* code_cipher, uint32_t cipher_code_len,
-        const char* condition,
-        uint8_t* condition_value, uint32_t condition_value_size,
-        uint8_t* sealed_data, uint32_t sealed_data_size,
-        uint8_t* encrypted_unseal_data)
-{
-    auto lock = KSSpinLock(&ks_op_spin_lock);
-
-    const char* shared = UserManager::Instance()->GetShared(account);
-
-    if(NULL == shared)
-    {
-        printf("ec_ks_unseal failed : account not exist\n");
-        return 0;
-    }
-
-    if(strcmp("password", condition))
-    {
-        int outLen = (cipher_code_len/16+1)*16;
-        int len = 0;
-        uint8_t* out = (uint8_t*)malloc(outLen);
-        aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
-                        code_cipher, cipher_code_len,
-                        out, &len);
-        int code = atoi((char*)out);
-        free(out);
-
-        outLen = (condition_value_size/16+1)*16;
-        len = 0;
-        out = (uint8_t*)malloc(outLen);
-        aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
-                        condition_value, condition_value_size,
-                        out, &len);
-        int v = atoi((char*)out);
-        if(code != v)
-        {
-            printf("ec_ks_unseal failed : password not equal\n");
-            return 0;
-        }
-        free(out);
-    }
-    else if(strcmp("email", condition))
-    {
-        int outLen = (cipher_code_len/16+1)*16;
-        int len = 0;
-        uint8_t* out = (uint8_t*)malloc(outLen);
-        aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
-                        code_cipher, cipher_code_len,
-                        out, &len);
-        int code = atoi((char*)out);
-        free(out);
-
-        const char* email = UserManager::Instance()->GetEmail(code);
-        if(NULL == email)
-        {
-            printf("ec_ks_unseal failed : email index not exist\n");
-            return 0;
-        }
-
-        outLen = (condition_value_size/16+1)*16;
-        len = 0;
-        out = (uint8_t*)malloc(outLen);
-        aes_gcm_decrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
-                        condition_value, condition_value_size,
-                        out, &len);
-        if(strcmp(email, (char*)out) != 0)
-        {
-            printf("ec_ks_unseal failed : email not equal\n");
-            return 0;
-        }
-        free(out);
-
-    }
-    else{
-        printf("ec_ks_unseal : contidon error\n");
-        return 0;
-    }
-
-    uint32_t unseal_size = 0;
-    uint8_t* out = unseal_data(sealed_data, &unseal_size);
-    if(out == NULL)
-    {
-        printf("ec_ks_unseal : unseal failed\n");
-        return 0;
-    }
-
-    int esLen = (unseal_size/16+1)*16;
-    int len = 0;
-    uint8_t* buff = (uint8_t*)malloc(esLen);
-    aes_gcm_encrypt((const unsigned char*)shared, 256, IV, sizeof(IV),
-            out, unseal_size,
-            buff, &len);
-    memcpy(encrypted_unseal_data, buff, len);
-    free(buff);
-    return len;
-}
-
 uint32_t ec_ks_unseal_gauth(const char* account,
                             uint8_t* code_cipher, uint32_t cipher_code_len,
                             uint64_t tm,
@@ -631,63 +470,6 @@ uint32_t ec_ks_unseal(const char *pkey, uint8_t *str, uint32_t data_size)
 
     free(decrypt_data);
     return retVal;
-}
-
-/*
-uint32_t ec_prove_me(uint8_t *key_pt, int klen, char * unsealStr)
-{
-    auto lock = KSSpinLock(&ks_op_spin_lock);
-
-    int outlen = (klen / 16 + 1) * 16;
-    unsigned char *outbuf = (unsigned char *)malloc(outlen);
-    memset(outbuf, 0, outlen);
-    int khowmany = 0;
-    aes_gcm_decrypt((unsigned char *)shared, 256,
-            IV, sizeof(IV),
-            (unsigned char *)key_pt, klen,
-            outbuf, &khowmany);
-    printf("decrypt buf\n");
-    printf("%s\n", outbuf);
-    // int nKey = (int)outbuf[0]*100 + (int)outbuf[1];
-    int nKey = atoi((char *)outbuf);
-    printf("prove me nKey\n");
-    printf("%d\n", nKey);
-    free(outbuf);
-
-    std::map<int, std::string>::iterator it = recoveryMap.find(nKey);
-    if (it != recoveryMap.end())
-    {
-        std::string v = it->second;
-
-        int outlen = (v.length() / 16 + 1) * 16;
-        int ohowmany = 0;
-        unsigned char *tmp = (unsigned char *)malloc(outlen);
-        aes_gcm_encrypt((unsigned char *)shared, 256, IV, sizeof(IV),
-                (const unsigned char *)v.c_str(), v.length(),
-                tmp, &ohowmany);
-        memcpy(unsealStr, tmp, ohowmany);
-        // oc_deliver_unseal_string(v.c_str());
-        recoveryMap.erase(nKey);
-        free(tmp);
-
-        return ohowmany;
-    }
-    else
-    {
-        printf("sealed data not found\n");
-    }
-    return 0;
-}
-*/
-
-sgx_status_t ec_rsa_decrypt(const char *str)
-{
-    auto lock = KSSpinLock(&ks_op_spin_lock);
-    std::string source(str);
-    size_t outlen = source.length() + 1;
-    rsa_decrypt(evp_pkey, (unsigned char *)source.c_str(), outlen);
-
-    return static_cast<sgx_status_t>(0);
 }
 
 uint32_t ec_auth(const char* account, const char* userpkeyHex)

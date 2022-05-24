@@ -19,7 +19,6 @@
 #include "Global/global.h"
 #include "Enclave_KS_u.h"
 #include "KSSgx.h"
-#include "test.h"
 #include "oc_funcs.h"
 #include "ErrorSupport.h"
 #include "UUser.h"
@@ -72,89 +71,17 @@ void ecc_key_gen()
 }
 
 
-/*
-EVP_PKEY *evp_pkey = NULL;
-RSA *keypair = NULL;
-
-
-void rsa_key_gen()
-{
-    BIGNUM *bn = BN_new();
-    if (bn == NULL) {
-        printf("BN_new failure: %ld\n", ERR_get_error());
-        return;
-    }
-    int ret = BN_set_word(bn, RSA_F4);
-    if (!ret) {
-        printf("BN_set_word failure\n");
-        return;
-    }
-
-    keypair = RSA_new();
-    if (keypair == NULL) {
-        printf("RSA_new failure: %ld\n", ERR_get_error());
-        return;
-    }
-    ret = RSA_generate_key_ex(keypair, 3027, bn, NULL);
-    if (!ret) {
-        printf("RSA_generate_key_ex failure: %ld\n", ERR_get_error());
-        return;
-    }
-
-    evp_pkey = EVP_PKEY_new();
-    if (evp_pkey == NULL) {
-        printf("EVP_PKEY_new failure: %ld\n", ERR_get_error());
-        return;
-    }
-    EVP_PKEY_assign_RSA(evp_pkey, keypair);
-    BN_free(bn);
-}
-*/
-
 int main(int argc, char* argv[])
 {
     auto instance = KSSgx::Instance();
     if(instance->initialize_enclave(ENCLAVE_NAME_KS))
     {
-        /*
-        ecc_key_gen();
-        const EC_POINT *point = EC_KEY_get0_public_key(ec_pkey);
-        char* ec_pkey_hex = EC_POINT_point2hex(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL);
-
-        sgx_enclave_id_t eid_t = instance->getEid();
-        test_gen_key(eid_t);
-        test_gen_gauth_secret(eid_t);
-        if(NULL != enclavepkHex)
-        {
-            EC_POINT *uPoint = EC_POINT_hex2point(group, enclavepkHex, NULL, NULL);
-            char shared[256];
-            ECDH_compute_key(shared, 256, uPoint, ec_pkey, NULL);
-            printf("e shared %s\n", shared);
-
-            char oData[] = "hello world!!!!";
-            AES_KEY aes;
-            AES_set_encrypt_key((const unsigned char*)shared, 256, &aes);
-
-            int inLen = strlen(oData);
-            int outLen = (inLen/16+1)*16;
-            unsigned char* out = (unsigned char*)malloc(outLen);
-            AES_encrypt((const unsigned char*)oData, out, &aes);
-
-            test_aes_decrypt(eid_t, (char*)out);
-
-            uint32_t  sealedSize = 0;
-            uint8_t* sealedBlob = test_seal_and_save_data(eid_t, &sealedSize);
-            test_read_unseal_data(eid_t, sealedBlob, sealedSize);
-            free(sealedBlob);
-
-            free(enclavepkHex);
-        }
-    */
         instance->gen_ecc_key();
         auto user = new UUser("childmercy@163.com");
         user->init();
         user->auth();
         user->RegisterMail();
+        user->RegisterGauth();
         printf("success\n");
     }
     delete instance;

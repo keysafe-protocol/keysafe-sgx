@@ -169,6 +169,34 @@ void UUser::RegisterMail()
 }
 
 
+void UUser::RegisterGauth()
+{
+    sgx_status_t ret;
+    uint32_t retval = 0;
+    uint8_t* secret_cipher = (uint8_t*)malloc(256);
+    uint8_t* sealedStr = (uint8_t*)malloc(1024);
+
+    sgx_enclave_id_t eid = KSSgx::Instance()->getEid();
+    ret = ec_register_gauth(eid, &retval, this->account.c_str(), secret_cipher, sealedStr);
+    if(ret != SGX_SUCCESS)
+    {
+        free(secret_cipher);
+        free(sealedStr);
+        return;
+    }
+
+    auto pSecretDecrypt = AesGcmDecrypt::Create((const unsigned char*)this->shared.c_str(), secret_cipher, 256);
+    if(NULL == pSecretDecrypt)
+    {
+        return;
+    }
+
+    printf("%s\n", pSecretDecrypt->data);
+
+    free(secret_cipher);
+    free(sealedStr);
+}
+
 bool UUser::generate_key()
 {
     ec_pkey= EC_KEY_new();
