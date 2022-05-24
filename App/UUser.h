@@ -28,6 +28,7 @@ class UUser
 
         bool init();
         void auth();
+        void RegisterMail();
 
     private:
         std::string user_hex;

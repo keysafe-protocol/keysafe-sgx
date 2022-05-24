@@ -327,9 +327,6 @@ sgx_status_t ec_ks_exchange(char *userpkeyHex, char *enclaveHex, char *sharedStr
         User user;
         user.Exchange(userpkeyHex, shared);
         UserManager::Instance()->PushExchangeUser(userpkeyHex, user);
-
-        printf("shared key %s\n", shared);
-
         memcpy(sharedStr, shared, len);
 
     }
@@ -711,6 +708,9 @@ uint32_t ec_auth(const char* account, const char* userpkeyHex)
         UserManager::Instance()->PushUserIndexMap(code, strUserPkeyHex);
         return code;
     }
+    else{
+        printf("PushAvaliableUser failed\n");
+    }
     return 0;
 }
 
@@ -737,7 +737,7 @@ sgx_status_t ec_auth_confirm(const char* account, uint8_t* code_cipher, uint32_t
     code = atoi(sc.c_str());
     free(outbuf);
 
-    if(!UserManager::Instance()->UserIndexExisted(code))
+    if(false == UserManager::Instance()->UserIndexExisted(code))
     {
         UserManager::Instance()->RemoveAvaliableUser(account);
         UserManager::Instance()->RemoveUserIndex(code);
@@ -780,7 +780,7 @@ uint32_t ec_gen_register_mail_code(const char* account, uint8_t* content, uint32
     return code;
 }
 
-sgx_status_t ec_register_mail(const char* account,
+uint32_t ec_register_mail(const char* account,
         uint8_t* code_cipher, uint32_t cipher_code_len,
         uint8_t* sealedStr, int sealedSize)
 {
@@ -800,8 +800,10 @@ sgx_status_t ec_register_mail(const char* account,
             code_cipher, cipher_code_len,
             out, &outhowmany);
 
-    int code = atoi((char*)out);
+    std::string sc(out, out+outhowmany);
+    int code = atoi(sc.c_str());
     free(out);
+    uint32_t sealed_size = 0;
     if(UserManager::Instance()->EmailIndexExisted(code))
     {
         const char* email = UserManager::Instance()->GetEmail(code);
@@ -809,8 +811,8 @@ sgx_status_t ec_register_mail(const char* account,
         user.SetEmail(email);
         UserManager::Instance()->RemoveUserMailIndex(code);
 
-        uint32_t sealed_size = 0;
         sgx_sealed_data_t* sealed_data = seal_data(reinterpret_cast<uint8_t*>(const_cast<char*>(email)), strlen(email), &sealed_size);
+        sealedSize = sealed_size;
         memcpy(sealedStr, sealed_data, sealed_size);
 
         free(sealed_data);
@@ -820,7 +822,7 @@ sgx_status_t ec_register_mail(const char* account,
         return SGX_ERROR_UNEXPECTED;
     }
 
-    return static_cast<sgx_status_t>(0);
+    return sealed_size;
 }
 
 sgx_status_t ec_register_password(const char* account,

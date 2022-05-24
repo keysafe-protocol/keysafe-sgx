@@ -18,7 +18,10 @@ bool UserManager::PushAvaliableUser(const char* account, const char* userpkeyhex
 
     auto it = m_userExchangedMap.find(hex);
     if(it == m_userExchangedMap.end())
+    {
+        printf("use hex not exist\n");
         return false;
+    }
 
 
     std::string strAccount;
@@ -52,12 +55,28 @@ bool UserManager::AvaliableUserExisted(const char* account)
 void UserManager::PushUserIndexMap(int index, std::string& strUserPpkeyhex)
 {
     m_userIndexMap[index] = strUserPpkeyhex;
+    for(auto var : m_userIndexMap)
+    {
+        printf("before %d ===> %s\n", var.first, var.second.c_str());
+    }
 }
 
 bool UserManager::UserIndexExisted(int code)
 {
-    auto iter = m_userIndexMap.find(code);
+    for(auto var : m_userIndexMap)
+    {
+        printf("after %d ===> %s\n", var.first, var.second.c_str());
+        if(var.first == code)
+        {
+            return true;
+        }
+    }
+    return false;
+
+    /*
+    std::map<int, std::string>::iterator iter = m_userIndexMap.find(code);
     return (iter != m_userIndexMap.end()) ? true: false;
+    */
 }
 
 const char* UserManager::GetShared(const char* account)
@@ -94,6 +113,7 @@ void UserManager::RemoveAvaliableUser(const char* account)
 
 void UserManager::RemoveUserIndex(int code)
 {
+    printf("remove user index %d\n", code);
     m_userIndexMap.erase(code);
 }
 

@@ -7,6 +7,9 @@
 #include <sstream>
 #include <iomanip>
 
+#include "AesGcmEncrypt.h"
+#include "AesGcmDecrypt.h"
+
 UUser::UUser()
 {
 
@@ -77,7 +80,7 @@ void UUser::auth()
         return;
     }
 
-    printf("auth_code %d\n", auth_code);
+    printf("UUser | auth_code %d\n", auth_code);
     if(auth_code > 0)
     {
         std::string ot = std::to_string(auth_code);
@@ -102,6 +105,68 @@ void UUser::auth()
     }
 }
 
+void UUser::RegisterMail()
+{
+    sgx_status_t ret;
+    uint32_t mail_code = 0;
+
+    sgx_enclave_id_t eid = KSSgx::Instance()->getEid();
+    /*
+    int outlen = (this->account.length()/16+1)*16;
+    int outhowmany = 0;
+    uint8_t* out = (uint8_t*)malloc(outlen);
+    aes_gcm_encrypt((const unsigned char*)shared.c_str(),256,
+            IV, sizeof(IV), (const unsigned char*)this->account.c_str(), this->account.length(),
+            out, &outhowmany);
+     */
+    auto pAGE = AesGcmEncrypt::Create((const unsigned char*)shared.c_str(), (const unsigned char*)this->account.c_str(), this->account.length());
+    if(NULL == pAGE)
+    {
+        printf("UUser | encrypt account failed\n");
+        return;
+    }
+
+    ret = ec_gen_register_mail_code(eid, &mail_code, this->account.c_str(), pAGE->data, pAGE->size);
+    if(ret != SGX_SUCCESS)
+    {
+        ret_error_support(ret);
+        return;
+    }
+
+    if(mail_code <= 0)
+    {
+        printf("UUser | mail code is zero\n");
+        return;
+    }
+
+    std::string codeStr = std::to_string(mail_code);
+    auto pECode = AesGcmEncrypt::Create((const unsigned char*)shared.c_str(), (const unsigned char*)codeStr.c_str(), codeStr.length());
+    if(NULL == pECode)
+    {
+        printf("UUser | encrypt code failed\n");
+        return;
+    }
+
+    uint32_t sealed_size = 0;
+    ret = ec_calc_sealed_size(eid, &sealed_size, this->account.length());
+    if(ret != SGX_SUCCESS)
+    {
+        printf("UUser | ec_calculate sealed size failed\n");
+        return;
+    }
+
+    uint32_t seal_data_size = 0;
+    uint8_t* sealedData = (uint8_t*)malloc(sealed_size);
+    ret = ec_register_mail(eid, &seal_data_size, this->account.c_str(), pECode->data, pECode->size, sealedData, sealed_size);
+    if(ret != SGX_SUCCESS)
+    {
+        printf("UUser | ec_register_mail failed\n");
+        free(sealedData);
+        return;
+    }
+
+    free(sealedData);
+}
 
 
 bool UUser::generate_key()

@@ -52,15 +52,13 @@ enclave {
 
         public uint32_t ec_gen_register_mail_code([in, string]const char* account, [in, size=content_len] uint8_t* content, uint32_t content_len);
 
-        public sgx_status_t ec_register_mail([in, string]const char* account, 
+        public uint32_t ec_register_mail([in, string]const char* account, 
                 [in, size=cipher_code_len]uint8_t* code_cipher, uint32_t cipher_code_len, 
                 [out, size=sealedSize]uint8_t* sealedStr, int sealedSize);
-
 
         public sgx_status_t ec_register_password([in, string]const char* account, 
                 [in, size=cipher_code_len]uint8_t* code_cipher, uint32_t cipher_code_len, 
                 [out, size=sealedSize]uint8_t* sealedStr, int sealedSize);
-
 
         public uint32_t ec_register_gauth([in, string]const char* account, 
                 [out, size=256]uint8_t* secret_cipher, 

@@ -154,6 +154,7 @@ int main(int argc, char* argv[])
         auto user = new UUser("childmercy@163.com");
         user->init();
         user->auth();
+        user->RegisterMail();
         printf("success\n");
     }
     delete instance;
