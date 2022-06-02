@@ -1,5 +1,4 @@
 #include "AesGcmEncrypt.h"
-#include "global.h"
 
 AesGcmEncrypt* AesGcmEncrypt::Create(const unsigned char* shared, const unsigned char* cipher_text, int cipher_len)
 {

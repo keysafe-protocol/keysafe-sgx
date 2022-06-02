@@ -119,14 +119,9 @@ void UUser::RegisterMail()
             IV, sizeof(IV), (const unsigned char*)this->account.c_str(), this->account.length(),
             out, &outhowmany);
      */
-    auto pAGE = AesGcmEncrypt::Create((const unsigned char*)shared.c_str(), (const unsigned char*)this->account.c_str(), this->account.length());
-    if(NULL == pAGE)
-    {
-        printf("UUser | encrypt account failed\n");
-        return;
-    }
+    auto pAGE = AesGcmEncrypt((const unsigned char*)shared.c_str(), (const unsigned char*)this->account.c_str(), this->account.length());
 
-    ret = ec_gen_register_mail_code(eid, &mail_code, this->account.c_str(), pAGE->data, pAGE->size);
+    ret = ec_gen_register_mail_code(eid, &mail_code, this->account.c_str(), pAGE.data, pAGE.size);
     if(ret != SGX_SUCCESS)
     {
         ret_error_support(ret);
@@ -140,12 +135,7 @@ void UUser::RegisterMail()
     }
 
     std::string codeStr = std::to_string(mail_code);
-    auto pECode = AesGcmEncrypt::Create((const unsigned char*)shared.c_str(), (const unsigned char*)codeStr.c_str(), codeStr.length());
-    if(NULL == pECode)
-    {
-        printf("UUser | encrypt code failed\n");
-        return;
-    }
+    auto pECode = AesGcmEncrypt((const unsigned char*)shared.c_str(), (const unsigned char*)codeStr.c_str(), codeStr.length());
 
     uint32_t sealed_size = 0;
     ret = ec_calc_sealed_size(eid, &sealed_size, this->account.length());
@@ -157,7 +147,7 @@ void UUser::RegisterMail()
 
     uint32_t seal_data_size = 0;
     uint8_t* sealedData = (uint8_t*)malloc(sealed_size);
-    ret = ec_register_mail(eid, &seal_data_size, this->account.c_str(), pECode->data, pECode->size, sealedData, sealed_size);
+    ret = ec_register_mail(eid, &seal_data_size, this->account.c_str(), pECode.data, pECode.size, sealedData, sealed_size);
     if(ret != SGX_SUCCESS)
     {
         printf("UUser | ec_register_mail failed\n");
@@ -185,13 +175,9 @@ void UUser::RegisterGauth()
         return;
     }
 
-    auto pSecretDecrypt = AesGcmDecrypt::Create((const unsigned char*)this->shared.c_str(), secret_cipher, 256);
-    if(NULL == pSecretDecrypt)
-    {
-        return;
-    }
+    auto pSecretDecrypt = AesGcmDecrypt((const unsigned char*)this->shared.c_str(), secret_cipher, 256);
 
-    printf("%s\n", pSecretDecrypt->data);
+    printf("%s\n", pSecretDecrypt.data);
 
     free(secret_cipher);
     free(sealedStr);
