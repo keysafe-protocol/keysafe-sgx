@@ -13,6 +13,7 @@
 #include <openssl/aes.h>
 
 #include <string>
+#include "global.h"
 
 class UUser
 {
@@ -30,6 +31,7 @@ class UUser
         void auth();
         void RegisterMail();
         void RegisterGauth();
+        void RemoteAttestation();
 
     private:
         std::string user_hex;
@@ -39,6 +41,20 @@ class UUser
         EC_KEY *ec_pkey = NULL;
         EC_GROUP* group = NULL;
         char* ec_pkey_hex = NULL;
+
+        ra_samp_request_header_t *p_msg0_full = NULL;
+        ra_samp_response_header_t *p_msg0_resp_full = NULL;
+        ra_samp_request_header_t *p_msg1_full = NULL;
+        ra_samp_response_header_t *p_msg2_full = NULL;
+        sgx_ra_msg3_t *p_msg3 = NULL;
+        sgx_ra_context_t context = INT_MAX;
+        ra_samp_request_header_t *p_msg3_full = NULL;
+        ra_samp_response_header_t *p_att_result_msg_full = NULL;
+        sgx_att_key_id_t selected_key_id = {0};
+        sgx_status_t status = SGX_SUCCESS;
+    
+
+        void raCleanup();
 };
 
 #endif

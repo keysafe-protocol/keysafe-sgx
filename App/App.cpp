@@ -23,6 +23,8 @@
 #include "ErrorSupport.h"
 #include "UUser.h"
 
+#include "sgx_ukey_exchange.h"
+
 
 EC_KEY *ec_pkey = NULL;
 EC_GROUP* group = NULL;
@@ -79,9 +81,12 @@ int main(int argc, char* argv[])
         instance->gen_ecc_key();
         auto user = new UUser("childmercy@163.com");
         user->init();
+        /*
         user->auth();
         user->RegisterMail();
         user->RegisterGauth();
+        */
+        user->RemoteAttestation();
         printf("success\n");
     }
     delete instance;

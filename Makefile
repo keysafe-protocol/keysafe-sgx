@@ -56,7 +56,7 @@ endif
 
 App_Cpp_Files := $(wildcard App/*.cpp)
 App_C_Files := $(wildcard App/google-authenticator/*.c)
-App_Include_Paths := -IApp -IApp/Global -IApp/google-authenticator -I$(SGX_SDK)/include -I$(SGXSSL_INCLUDE_PATH)/openssl 
+App_Include_Paths := -IApp -IApp/Global -IApp/google-authenticator -I$(SGX_SDK)/include -I$(SGXSSL_INCLUDE_PATH)/openssl -Iservice_provider
 
 App_Compile_CFlags := -fPIC -Wno-attributes $(App_Include_Paths)
 # Three configuration modes - Debug, prerelease, release
@@ -72,16 +72,34 @@ else
 endif
 
 App_Compile_CXXFlags := -std=c++0x $(App_Compile_CFlags)
-App_Link_Flags := -L$(SGX_LIBRARY_PATH) -L$(SGXSSL_TRUSTED_LIB_PATH) -lsgx_usgxssl -l$(Urts_Library_Name) -lpthread -lcrypto
+App_Link_Flags := -L$(SGX_LIBRARY_PATH) -L$(SGXSSL_TRUSTED_LIB_PATH) -lsgx_usgxssl -l$(Urts_Library_Name) -L. -lcrypto -lsgx_ukey_exchange -lpthread -lservice_provider -Wl,-rpath=$(CURDIR)/sample_libcrypto -Wl,-rpath=$(CURDIR)
 
 Gen_Untrusted_Source_KS := App/Enclave_KS_u.c
 Gen_Untrusted_Object_KS := App/Enclave_KS_u.o
+
+ifneq ($(SGX_MODE), HW)
+	App_Link_Flags += -lsgx_epid_sim -lsgx_quote_ex_sim
+else
+	App_Link_Flags += -lsgx_epid -lsgx_quote_ex
+endif
 
 
 App_Objects := $(Gen_Untrusted_Object_KS) $(App_Cpp_Files:.cpp=.o) $(App_C_Files:.c=.o)
 #App_Objects := $(App_Cpp_Files:.cpp=.o)
 
 App_Name := app
+
+######## Service Provider Settings ########
+
+ServiceProvider_Cpp_Files := service_provider/ecp.cpp service_provider/network_ra.cpp service_provider/service_provider.cpp service_provider/ias_ra.cpp
+ServiceProvider_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -Isample_libcrypto
+
+ServiceProvider_C_Flags := -fPIC -Wno-attributes -I$(SGX_SDK)/include -Isample_libcrypto
+ServiceProvider_Cpp_Flags := $(ServiceProvider_C_Flags)
+ServiceProvider_Link_Flags :=  -shared -L$(SGX_LIBRARY_PATH) -lsample_libcrypto -Lsample_libcrypto
+
+ServiceProvider_Cpp_Objects := $(ServiceProvider_Cpp_Files:.cpp=.o)
+
 
 ######## Enclave Settings ########
 ifneq ($(SGX_MODE), HW)
@@ -119,7 +137,7 @@ Enclave_Link_Flags := $(Enclave_Security_Link_Flags) \
 	-L$(SGXSSL_TRUSTED_LIB_PATH)  \
 	-Wl,--whole-archive -lsgx_tsgxssl \
 	-Wl,--no-whole-archive -lsgx_tsgxssl_crypto -lsgx_pthread \
-	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
+	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lsgx_tkey_exchange -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined -Wl,-pie,-eenclave_entry \
 	-Wl,--export-dynamic -Wl,--defsym,__ImageBase=0 -Wl,--gc-sections
 
@@ -161,7 +179,7 @@ all: .config_$(Build_Mode)_$(SGX_ARCH)
 	@$(MAKE) target
 
 ifeq ($(Build_Mode), HW_RELEASE)
-target: $(App_Name)
+target: libservice_provider.so $(App_Name)
 	@echo "The project has been built in release hardware mode."
 	echo "Please sign the enclaves ($(Enclave_KS_Name)) first with your signing key before you run the $(App_Name) to launch and access the enclaves."
 	@echo "To sign the enclaves use the command:"
@@ -170,7 +188,7 @@ target: $(App_Name)
 	@echo "You can also sign the enclave using an external signing tool."
 	@echo "To build the project in simulation mode set SGX_MODE=SIM. To build the project in prerelease mode set SGX_PRERELEASE=1 and SGX_MODE=HW."
 else
-target: $(App_Name) $(Signed_Enclave_KS_Name)
+target: libservice_provider.so $(App_Name) $(Signed_Enclave_KS_Name)
 ifeq ($(Build_Mode), HW_DEBUG)
 	@echo "The project has been built in debug hardware mode."
 else ifeq ($(Build_Mode), SIM_DEBUG)
@@ -209,6 +227,17 @@ $(App_Name): $(App_Objects)
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $^ -o $@ $(App_Link_Flags)
 	@echo "LINK => $@"
 
+######## Service Provider Objects ########
+service_provider/%.o: service_provider/%.cpp
+	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(ServiceProvider_Cpp_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
+libservice_provider.so: $(ServiceProvider_Cpp_Objects)
+	@$(CXX) $^ -o $@ $(ServiceProvider_Link_Flags)
+	@echo "LINK =>  $@"
+
+
+
 ######## Enclave KS Objects ######
 $(Gen_Trusted_Source_KS): $(SGX_EDGER8R) Enclave_KS/Enclave_KS.edl
 	@cd Enclave_KS&& $(SGX_EDGER8R) --trusted Enclave_KS.edl --search-path $(SGX_SDK)/include --search-path $(SGXSSL_INCLUDE_PATH)
@@ -238,6 +267,7 @@ $(Signed_Enclave_KS_Name): $(Enclave_KS_Name)
 clean:
 	@rm -f .config_* $(App_Name) $(App_Objects) $(Enclave_KS_Name) $(Signed_Enclave_KS_Name)
 	@rm -f $(Enclave_KS_Objects) App/Enclave_KS_u.* Enclave_KS/Enclave_KS_t.*
+	@rm -f libservice_provider.* $(ServiceProvider_Cpp_Objects)
 
 
 
